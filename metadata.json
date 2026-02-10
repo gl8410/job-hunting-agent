@@ -1,0 +1,5 @@
+{
+  "name": "Decision making support system",
+  "description": "A privacy-first, human-in-the-loop job search dashboard. Manage experience blocks, track applications, and use Gemini AI to analyze fit and generate tailored resumes.",
+  "requestFramePermissions": []
+}

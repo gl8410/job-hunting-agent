@@ -1,0 +1,64 @@
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "6801:8004"
+    environment:
+      - DATABASE_URL=postgresql://jobhunter:jobhunter_pass@db:5432/jbh_db
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - BACKEND_CORS_ORIGINS=["http://localhost:3004","http://localhost:8004","http://localhost","http://117.72.155.176:6801"]
+      # Add other environment variables from your .env here or use env_file
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+      - chroma
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    ports:
+      - "7801:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=jobhunter
+      - POSTGRES_PASSWORD=jobhunter_pass
+      - POSTGRES_DB=jbh_db
+    volumes:
+      - /data/volumes/search_agent_postgres:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  chroma:
+    image: chromadb/chroma:0.5.3
+    volumes:
+      - /data/volumes/search_agent_chroma:/chroma/chroma
+    ports:
+      - "8021:80"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  searchagent_postgres_data:
+    external: true
+  searchagent_chroma_data:
+    external: true

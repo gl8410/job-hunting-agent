@@ -1,0 +1,33 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environments
+env/
+venv/
+.venv/
+.env
+.env.*
+
+# Tests & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+testdata/
+
+# Downloads
+downloads/
+
+# Logs
+*.log
+pip-log.txt
+
+# Editor / Git
+.git/
+.gitignore
+.vscode/
+.idea/
