@@ -129,19 +129,105 @@ async def generate_materials(
 @router.post("/extract-experience")
 async def extract_experience(
     request: ExtractRequest,
-    current_user: Profile = Depends(get_current_user)
+    current_user: Profile = Depends(get_current_user),
+    x_language: Optional[str] = Header(None, alias="X-Language")
 ):
     """
     Extract experience blocks from resume text
     """
-    # Extraction is usually fact-based, but we could pass language if we want STAR in Chinese
     from app.integrations.llm import call_llm_json
+    
+    lang = x_language or request.language or "en"
+    logger.info(f"Extracting experience blocks from resume text in {lang}")
 
     system_prompt = """You are an expert resume parser and career coach.
-    Analyze the provided resume text and extract discrete professional experience blocks.
-    For each experience block, structure it into the STAR format (Situation, Task, Action, Result).
-    ...
-    """
-    # (Rest of extraction logic remains similar for now as it's more about data capture)
-    # ...
-    return [] # Truncated for brevity in this step
+Analyze the provided resume text and extract discrete professional experience blocks.
+For each experience block, structure it into the STAR format (Situation, Task, Action, Result).
+
+CRITICAL: You must return ONLY a valid JSON array starting with [ and ending with ].
+Do not include any explanatory text before or after the JSON.
+Do not wrap the JSON in markdown code blocks.
+
+Return a JSON array of experience blocks. Each block should have:
+- experience_name: A descriptive title for this experience/achievement
+- company: Company name
+- role: Job title/role
+- time_period: Time period (e.g., "2020-2022")
+- tags: Array of relevant tags/categories
+- tech_stack: Array of technologies used
+- content_star: Object with {situation, task, action, result} fields
+
+Example format (you MUST return an array like this):
+[
+  {
+    "experience_name": "Led Cloud Migration Project",
+    "company": "Tech Corp",
+    "role": "Senior Engineer",
+    "time_period": "2020-2022",
+    "tags": ["cloud", "leadership"],
+    "tech_stack": ["AWS", "Docker", "Kubernetes"],
+    "content_star": {
+      "situation": "Legacy infrastructure causing scalability issues",
+      "task": "Migrate entire infrastructure to cloud",
+      "action": "Led team of 5 engineers, implemented CI/CD pipeline",
+      "result": "Reduced costs by 40%, improved uptime to 99.9%"
+    }
+  }
+]
+
+If the text contains markers like "### EXPERIENCE BLOCK START ###" and "### EXPERIENCE BLOCK END ###", parse them accordingly.
+Otherwise, intelligently extract experience blocks from the resume text.
+
+Remember: Return ONLY the JSON array, starting with [ and ending with ]."""
+
+    user_prompt = f"Extract experience blocks from this resume:\n\n{request.text}"
+    
+    try:
+        result = await call_llm_json(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            temperature=0.3,
+            max_tokens=4000,
+            model_type="analysis"
+        )
+        
+        # Handle both array and object responses
+        if isinstance(result, dict) and "experiences" in result:
+            experiences = result["experiences"]
+        elif isinstance(result, list):
+            experiences = result
+        else:
+            experiences = [result]
+        
+        # Validate and clean the experiences
+        validated_experiences = []
+        for exp in experiences:
+            if not isinstance(exp, dict):
+                continue
+                
+            # Ensure required fields
+            validated_exp = {
+                "experience_name": exp.get("experience_name", ""),
+                "company": exp.get("company", ""),
+                "role": exp.get("role", ""),
+                "time_period": exp.get("time_period", ""),
+                "tags": exp.get("tags", []),
+                "tech_stack": exp.get("tech_stack", []),
+                "content_star": exp.get("content_star", {
+                    "situation": "",
+                    "task": "",
+                    "action": "",
+                    "result": ""
+                })
+            }
+            
+            # Only include if we have at least experience_name or company
+            if validated_exp["experience_name"] or validated_exp["company"]:
+                validated_experiences.append(validated_exp)
+        
+        logger.info(f"Successfully extracted {len(validated_experiences)} experience blocks")
+        return validated_experiences
+        
+    except Exception as e:
+        logger.error(f"Failed to extract experience blocks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract experience blocks: {str(e)}")

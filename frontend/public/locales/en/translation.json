@@ -48,6 +48,10 @@
     "tags_label": "Tags (comma separated)",
     "tech_stack_label": "Tech Stack (comma separated)",
     "star_section": "STAR Method Content",
+    "situation_label": "Situation",
+    "task_label": "Task",
+    "action_label": "Action",
+    "result_label": "Result",
     "save_button": "Save Block",
     "task_preview": "Task",
     "result_preview": "Result"

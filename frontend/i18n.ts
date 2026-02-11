@@ -63,6 +63,10 @@ i18n
             tags_label: "Tags (comma separated)",
             tech_stack_label: "Tech Stack (comma separated)",
             star_section: "STAR Method Content",
+            situation_label: "Situation",
+            task_label: "Task",
+            action_label: "Action",
+            result_label: "Result",
             save_button: "Save Block",
             task_preview: "Task",
             result_preview: "Result"
@@ -170,6 +174,10 @@ i18n
             tags_label: "标签 (逗号分隔)",
             tech_stack_label: "技术栈 (逗号分隔)",
             star_section: "STAR 法则内容",
+            situation_label: "情境",
+            task_label: "任务",
+            action_label: "行动",
+            result_label: "结果",
             save_button: "保存经验",
             task_preview: "任务",
             result_preview: "结果"

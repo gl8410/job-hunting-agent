@@ -67,14 +67,19 @@ export const ExperienceLibrary: React.FC<ExperienceLibraryProps> = ({
             }
             alert(`Successfully extracted and uploaded ${extractedBlocks.length} experience blocks!`);
         } catch (error) {
-            alert("Failed to extract experience.");
+            console.error("Extract experience error:", error);
+            alert(`Failed to extract experience: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsImporting(false);
+            // Reset file input so the same file can be uploaded again
+            e.target.value = '';
         }
     };
     reader.onerror = () => {
         setIsImporting(false);
         alert("Error reading file");
+        // Reset file input
+        e.target.value = '';
     };
     reader.readAsText(file);
   };

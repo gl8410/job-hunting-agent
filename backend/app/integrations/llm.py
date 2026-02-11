@@ -99,17 +99,38 @@ async def call_llm_json(
     import re
     
     # Try to extract JSON from markdown code block if present
-    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result, re.DOTALL)
+    json_match = re.search(r'```(?:json)?\s*(\[.*\]|\{.*\})\s*```', result, re.DOTALL)
     if json_match:
         result = json_match.group(1)
     else:
-        # Sometimes it might just be the JSON string without code blocks but with some text around
-        json_match = re.search(r'(\{.*\})', result, re.DOTALL)
+        # Try to find array first (greedy to get full content), then object
+        json_match = re.search(r'(\[.*\])', result, re.DOTALL)
         if json_match:
             result = json_match.group(1)
+        else:
+            # For objects, use greedy match to get everything
+            json_match = re.search(r'(\{.*\})', result, re.DOTALL)
+            if json_match:
+                result = json_match.group(1)
+    
+    # Clean up the result to handle cases where JSON might have extra text
+    result = result.strip()
 
     try:
-        return json.loads(result)
+        parsed = json.loads(result)
+        return parsed
     except json.JSONDecodeError as e:
-        print(f"Failed to parse LLM response as JSON: {result}")
+        # If parsing fails, try to wrap it in an array if it looks like comma-separated objects
+        # This handles cases where LLM returns multiple objects but forgets the array wrapper
+        if result.startswith('{') and not result.startswith('['):
+            try:
+                # Try wrapping in array brackets
+                wrapped = f'[{result}]'
+                parsed = json.loads(wrapped)
+                print(f"Successfully parsed after wrapping in array brackets")
+                return parsed
+            except json.JSONDecodeError:
+                pass
+        
+        print(f"Failed to parse LLM response as JSON: {result[:500]}...")
         raise e

@@ -3,16 +3,15 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "6801:8004"
+    restart: always
     environment:
-      - DATABASE_URL=postgresql://jobhunter:jobhunter_pass@db:5435/jbh_db
-      - BACKEND_CORS_ORIGINS=["http://localhost:3004","http://localhost:8004","http://localhost","http://117.72.155.176:6801"]
-      # Add other environment variables from your .env here or use env_file
+      - DATABASE_URL=postgresql://jobhunter:jobhunter_pass@db:5432/jbh_db
+      - BACKEND_CORS_ORIGINS=["http://localhost:3004","http://localhost:7801","http://localhost","http://117.72.155.176:6801"]
     env_file:
       - ./backend/.env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -23,6 +22,7 @@ services:
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    restart: always
     ports:
       - "7801:80"
     depends_on:
@@ -32,14 +32,18 @@ services:
 
   db:
     image: postgres:15-alpine
+    restart: always
     environment:
       - POSTGRES_USER=jobhunter
       - POSTGRES_PASSWORD=jobhunter_pass
       - POSTGRES_DB=jbh_db
     volumes:
       - /data/volumes/search_agent_postgres:/var/lib/postgresql/data
-    ports:
-      - "5435:5435"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhunter -d jbh_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
@@ -49,4 +53,3 @@ networks:
 
 volumes:
   searchagent_postgres_data:
-    external: true
