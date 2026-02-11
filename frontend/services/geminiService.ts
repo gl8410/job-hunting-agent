@@ -81,7 +81,16 @@ export const extractExperienceFromText = async (resumeText: string): Promise<Exp
   });
   if (!response.ok) throw new Error("Backend extraction failed");
   const data = await response.json();
-  return data.map((b: any) => ({ ...b, id: b.id || crypto.randomUUID() }));
+  
+  // Use a fallback for crypto.randomUUID which is only available in Secure Contexts (HTTPS)
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+  };
+
+  return data.map((b: any) => ({ ...b, id: b.id || generateId() }));
 };
 
 export const generateResumeForJob = async (jobId: string | number, templateId?: string): Promise<JobOpportunity> => {
