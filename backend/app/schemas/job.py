@@ -27,6 +27,14 @@ class JobCreate(BaseModel):
     description_raw: Optional[str] = None
     user_email: Optional[str] = None
 
+    def __init__(self, **data):
+        # Handle aliases for extension compatibility
+        if 'description' in data and 'description_markdown' not in data:
+            data['description_markdown'] = data['description']
+        if 'html' in data and 'description_raw' not in data:
+            data['description_raw'] = data['html']
+        super().__init__(**data)
+
 class JobUpdate(BaseModel):
     url: Optional[str] = None
     platform: Optional[str] = None
@@ -53,6 +61,7 @@ class JobUpdate(BaseModel):
     generated_cover_letter: Optional[str] = None
     cover_letter_generated_at: Optional[datetime] = None
     selected_template_id: Optional[str] = None
+    generated_content_lang: Optional[str] = None
     status: Optional[str] = None
 
 class JobResponse(BaseModel):
@@ -82,6 +91,7 @@ class JobResponse(BaseModel):
     generated_cover_letter: Optional[str] = None
     cover_letter_generated_at: Optional[datetime] = None
     selected_template_id: Optional[str] = None
+    generated_content_lang: Optional[str] = None
     status: str
     user_email: str
     created_at: datetime
@@ -102,4 +112,3 @@ class AnalysisResult(BaseModel):
     brief_description: Optional[str] = None
     keySkills: List[str]
     company_analysis: Optional[CompanyAnalysis] = None
-

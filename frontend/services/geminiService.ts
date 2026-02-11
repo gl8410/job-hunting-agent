@@ -1,3 +1,4 @@
+import i18n from 'i18next';
 import { JobOpportunity, ExperienceBlock, AnalysisResult, MatchResult } from "../types";
 import { supabase } from './supabase';
 
@@ -10,7 +11,8 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const headers = {
         ...options.headers,
         'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept-Language': i18n.language
     };
     return fetch(url, { ...options, headers: headers as any });
 }
@@ -18,7 +20,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 export const analyzeJobDescription = async (description: string): Promise<AnalysisResult> => {
   const response = await fetchWithAuth(`${API_BASE}/analyze`, {
     method: 'POST',
-    body: JSON.stringify({ description })
+    body: JSON.stringify({ description, language: i18n.language })
   });
   if (!response.ok) throw new Error("Backend analysis failed");
   return response.json();
@@ -43,7 +45,7 @@ export const researchCompany = async (jobId: number): Promise<JobOpportunity> =>
 export const matchExperienceBlocks = async (job: JobOpportunity, blocks: ExperienceBlock[]): Promise<{matches: MatchResult[], level: 'Low'|'Medium'|'Good', reasoning: string, advantages: string[], weaknesses: string[]}> => {
   const response = await fetchWithAuth(`${API_BASE}/match`, {
     method: 'POST',
-    body: JSON.stringify({ job, blocks })
+    body: JSON.stringify({ job, blocks, language: i18n.language })
   });
   if (!response.ok) throw new Error("Backend matching failed");
   const data = await response.json();
@@ -65,7 +67,7 @@ export const generateApplicationMaterials = async (
 ): Promise<string> => {
   const response = await fetchWithAuth(`${API_BASE}/generate`, {
     method: 'POST',
-    body: JSON.stringify({ job, blocks, type, customInstructions, templateStyle })
+    body: JSON.stringify({ job, blocks, type, customInstructions, templateStyle, language: i18n.language })
   });
   if (!response.ok) throw new Error("Backend generation failed");
   const data = await response.json();
@@ -75,7 +77,7 @@ export const generateApplicationMaterials = async (
 export const extractExperienceFromText = async (resumeText: string): Promise<ExperienceBlock[]> => {
   const response = await fetchWithAuth(`${API_BASE}/extract-experience`, {
     method: 'POST',
-    body: JSON.stringify({ text: resumeText })
+    body: JSON.stringify({ text: resumeText, language: i18n.language })
   });
   if (!response.ok) throw new Error("Backend extraction failed");
   const data = await response.json();
@@ -83,11 +85,9 @@ export const extractExperienceFromText = async (resumeText: string): Promise<Exp
 };
 
 export const generateResumeForJob = async (jobId: string | number, templateId?: string): Promise<JobOpportunity> => {
-  // Use window.location.origin as base for relative URLs to avoid "Invalid URL" error
   const url = new URL(`${API_BASE}/jobs/${jobId}/generate-resume`, window.location.origin);
   if (templateId) url.searchParams.append('template_id', templateId);
   
-  // Convert back to relative string if preferred, or use full URL. fetch accepts full URL.
   const response = await fetchWithAuth(url.toString(), {
     method: 'POST'
   });

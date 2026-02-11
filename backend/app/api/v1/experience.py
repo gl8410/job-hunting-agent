@@ -13,7 +13,6 @@ from app.schemas.profile import (
     ExperienceBlockResponse
 )
 from app.models.user import Profile
-from app.integrations.vector import vector_client
 from app.core.logging_config import get_logger
 
 router = APIRouter()
@@ -52,26 +51,7 @@ async def create_experience_block(
     db.commit()
     db.refresh(db_block)
     
-    # Add to vector database
-    try:
-        logger.info(f"Adding experience block {db_block.id} to vector DB")
-        await vector_client.upsert_experience_blocks([{
-            "id": db_block.id,
-            "experience_name": db_block.experience_name,
-            "company": db_block.company,
-            "role": db_block.role,
-            "tags": db_block.tags,
-            "tech_stack": db_block.tech_stack,
-            "content_star": db_block.content_star
-        }], user_email=current_user_email)
-        db_block.embedding_id = str(db_block.id)
-        db.add(db_block)
-        db.commit()
-        db.refresh(db_block)
-        logger.info(f"Successfully created experience block {db_block.id} and added to vector DB")
-    except Exception as e:
-        logger.error(f"Error adding to vector DB: {e}")
-    
+    logger.info(f"Successfully created experience block {db_block.id}")
     return db_block
 
 @router.get("/experience/{block_id}", response_model=ExperienceBlockResponse)
@@ -112,20 +92,6 @@ async def update_experience_block(
     db.commit()
     db.refresh(block)
     
-    # Update in vector database
-    try:
-        await vector_client.upsert_experience_blocks([{
-            "id": block.id,
-            "experience_name": block.experience_name,
-            "company": block.company,
-            "role": block.role,
-            "tags": block.tags,
-            "tech_stack": block.tech_stack,
-            "content_star": block.content_star
-        }], user_email=current_user_email)
-    except Exception as e:
-        logger.error(f"Error updating vector DB: {e}")
-    
     logger.info(f"Successfully updated experience block {block.id}")
     return block
 
@@ -143,14 +109,8 @@ async def delete_experience_block(
     if block.user_email != current_user_email:
         raise HTTPException(status_code=403, detail="Not authorized to delete this block")
     
-    # Delete from vector database
-    try:
-        vector_client.delete_experience_block(str(block_id))
-    except Exception as e:
-        logger.error(f"Error deleting from vector DB: {e}")
-    
     db.delete(block)
     db.commit()
     logger.info(f"Successfully deleted experience block {block_id}")
-    return {"message": "Experience block deleted successfully"}
+    return {"message": "Experience block deleted"}
 

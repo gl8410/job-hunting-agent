@@ -23,8 +23,20 @@ def setup_logging():
         ]
     )
 
-    # Disable some noisy loggers
+    # Suppress verbose third-party library logs
+    # Only show WARNING and above for these libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("hpack").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http2").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.proxy").setLevel(logging.WARNING)
+    
+    # Keep application logs at the configured level
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(log_level)
     
     # Create an initial log to confirm setup
     logger = logging.getLogger(__name__)

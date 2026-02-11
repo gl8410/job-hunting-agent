@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Library, Search, BarChart3, Briefcase, UserCircle, LogOut, Trash2, Edit2, X, Check, Filter, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Library, Search, BarChart3, Briefcase, UserCircle, LogOut, Trash2, Edit2, X, Check, Filter, RefreshCw, Languages } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ExperienceBlock, JobOpportunity, JobStatus, ResumeTemplate } from './types';
 import { ExperienceLibrary } from './components/ExperienceLibrary';
 import { JobDetail } from './components/JobDetail';
@@ -14,6 +15,7 @@ const API_BASE = "/api";
 
 function AppContent() {
   const { session, signOut } = useAuth();
+  const { t, i18n } = useTranslation();
   const [view, setView] = useState<'dashboard' | 'library' | 'stats' | 'profile' | 'resumes'>('dashboard');
   const [blocks, setBlocks] = useState<ExperienceBlock[]>([]);
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
@@ -25,12 +27,18 @@ function AppContent() {
   const [editTitle, setEditTitle] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL'>('ALL');
 
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'zh' : 'en';
+    i18n.changeLanguage(newLang);
+  };
+
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
       if (!session) return new Response(null, { status: 401 });
       const headers = {
           ...options.headers,
           'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Language': i18n.language // Pass current language to backend
       };
       return fetch(url, { ...options, headers: headers as any });
   };
@@ -87,7 +95,7 @@ function AppContent() {
 
   const handleDeleteJob = async (e: React.MouseEvent, id: string | number) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this job?')) return;
+    if (!confirm(t('common.delete_confirm'))) return;
     
     const res = await fetchWithAuth(`${API_BASE}/jobs/${id}`, { method: 'DELETE' });
     if (res.ok) {
@@ -180,25 +188,33 @@ function AppContent() {
           <div className="bg-blue-600 text-white p-2 rounded-lg shadow-blue-200">
             <Search size={24} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-800 hidden md:block">Job Hunter</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-800 hidden md:block">{t('dashboard.title')}</h1>
         </div>
         
         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
           <button onClick={() => setView('dashboard')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium transition-all ${view === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <LayoutDashboard size={18} /> <span className="hidden sm:inline">Dashboard</span>
+            <LayoutDashboard size={18} /> <span className="hidden sm:inline">{t('nav.dashboard')}</span>
           </button>
           <button onClick={() => setView('library')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium transition-all ${view === 'library' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <Library size={18} /> <span className="hidden sm:inline">Brain</span>
+            <Library size={18} /> <span className="hidden sm:inline">{t('nav.brain')}</span>
           </button>
           <button onClick={() => setView('resumes')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium transition-all ${view === 'resumes' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <Briefcase size={18} /> <span className="hidden sm:inline">Resumes</span>
+            <Briefcase size={18} /> <span className="hidden sm:inline">{t('nav.resumes')}</span>
           </button>
           <button onClick={() => setView('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium transition-all ${view === 'stats' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <BarChart3 size={18} /> <span className="hidden sm:inline">Stats</span>
+            <BarChart3 size={18} /> <span className="hidden sm:inline">{t('nav.stats')}</span>
           </button>
         </div>
 
         <div className="flex items-center gap-2">
+            <button 
+              onClick={toggleLanguage}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors mr-2"
+              title="Toggle Language"
+            >
+              <Languages size={18} />
+              <span className="text-xs font-bold uppercase">{i18n.language}</span>
+            </button>
             <div 
                 onClick={() => setView('profile')}
                 className={`flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer transition-opacity hover:opacity-80
@@ -216,7 +232,7 @@ function AppContent() {
             <button 
               onClick={handleLogout}
               className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-              title="Logout"
+              title={t('nav.logout')}
             >
               <LogOut size={20} />
             </button>
@@ -266,7 +282,7 @@ function AppContent() {
                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                        <input
                          className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                         placeholder="Search by title or company..."
+                         placeholder={t('common.search_placeholder')}
                          value={searchQuery}
                          onChange={e => setSearchQuery(e.target.value)}
                        />
@@ -295,9 +311,9 @@ function AppContent() {
                       onChange={(e) => setStatusFilter(e.target.value as JobStatus | 'ALL')}
                       className="bg-slate-50 text-xs border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="ALL">All Jobs {jobCounts.ALL}</option>
+                      <option value="ALL">{t('common.all')} {jobCounts.ALL}</option>
                       {Object.values(JobStatus).map(status => (
-                        <option key={status} value={status}>{status} {jobCounts[status] || 0}</option>
+                        <option key={status} value={status}>{t(`common.${status.toLowerCase()}`)} {jobCounts[status] || 0}</option>
                       ))}
                     </select>
                   </div>
@@ -316,6 +332,12 @@ function AppContent() {
                       </button>
                     </div>
                   )}
+                  {filteredAndSortedJobs.length === 0 && !searchQuery && (
+                    <div className="text-center py-12 px-4 text-slate-400">
+                      <Briefcase size={48} className="mx-auto mb-4 opacity-10" />
+                      <p className="text-sm font-medium">{t('dashboard.no_jobs')}</p>
+                    </div>
+                  )}
                   {filteredAndSortedJobs.map(job => (
                       <div
                         key={job.id}
@@ -325,7 +347,7 @@ function AppContent() {
                       >
                          <div className="flex items-center gap-2 mb-1">
                             <div className={`w-2 h-2 rounded-full ${getStatusColor(job.status as JobStatus)}`} />
-                            <span className="text-xs text-slate-500 font-medium">{new Date(job.created_at).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
+                            <span className="text-xs text-slate-500 font-medium">{new Date(job.created_at).toLocaleDateString(i18n.language, {month: 'short', day: 'numeric'})}</span>
                          </div>
                          {editingJobId === job.id ? (
                            <div className="mb-1" onClick={e => e.stopPropagation()}>
@@ -369,41 +391,41 @@ function AppContent() {
                            </>
                          )}
                       </div>
-                  ))}
-               </div>
-            </div>
-
-            {/* Detail Area */}
-            <div className="w-4/5 h-full bg-slate-100/50 p-6 overflow-hidden">
-               {selectedJob ? (
-                 <JobDetail
-                    job={selectedJob}
-                    blocks={blocks}
-                    templates={templates}
-                    onUpdateJob={handleUpdateJob}
-                    onRefreshJobs={refreshJobs}
-                 />
-               ) : (
-                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                    <Briefcase size={64} className="mb-4 opacity-20" />
-                    <p className="text-lg mb-2">Select a job from the list to view details.</p>
-                    <p className="text-sm text-slate-500">Use Chrome extension to add jobs from any website →</p>
-                 </div>
-               )}
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
-
-export default App;
+                   ))}
+                </div>
+             </div>
+ 
+             {/* Detail Area */}
+             <div className="w-4/5 h-full bg-slate-100/50 p-6 overflow-hidden">
+                {selectedJob ? (
+                  <JobDetail
+                     job={selectedJob}
+                     blocks={blocks}
+                     templates={templates}
+                     onUpdateJob={handleUpdateJob}
+                     onRefreshJobs={refreshJobs}
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                     <Briefcase size={64} className="mb-4 opacity-20" />
+                     <p className="text-lg mb-2">Select a job from the list to view details.</p>
+                     <p className="text-sm text-slate-500">Use Chrome extension to add jobs from any website →</p>
+                  </div>
+                )}
+             </div>
+           </div>
+         )}
+       </main>
+     </div>
+   );
+ }
+ 
+ function App() {
+   return (
+     <AuthProvider>
+       <AppContent />
+     </AuthProvider>
+   );
+ }
+ 
+ export default App;

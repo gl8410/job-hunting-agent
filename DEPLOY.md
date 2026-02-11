@@ -14,9 +14,7 @@ This guide explains how to deploy the application using Docker and Docker Compos
 Ensure `backend/.env` is configured. You can copy `backend/.env.local` or use the provided example in `backend/.env`.
 
 Key variables to check in `backend/.env`:
-- `DATABASE_URL`: `postgresql://postgres:postgres@db:5432/jobhunter` (Default for Docker)
-- `CHROMA_HOST`: `chroma` (Default for Docker)
-- `CHROMA_PORT`: `8000` (Internal Docker port)
+- `DATABASE_URL`: `postgresql://postgres:postgres@db:5435/jobhunter` (Default for Docker)
 - `BACKEND_CORS_ORIGINS`: Update this list to include your production frontend domain and extension ID.
   - Example: `["http://your-domain.com", "https://your-domain.com", "chrome-extension://YOUR_EXTENSION_ID"]`
 - `SUPABASE_URL` and `SUPABASE_KEY`: Required for authentication if using Supabase.
@@ -46,8 +44,7 @@ docker-compose up --build -d
 This will start:
 - **Backend**: Available at `http://localhost:8004`
 - **Frontend**: Available at `http://localhost:3004`
-- **Postgres DB**: Internal port 5432
-- **ChromaDB**: Internal port 8000 (Exposed as 8021 locally)
+- **Postgres DB**: Internal port 5435
 
 ## 3. Verify Deployment
 

@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
 import httpx
 import uuid
+import ssl
 
 from app.core.db import engine
 from app.core.config import settings
@@ -77,8 +78,33 @@ async def get_current_user(
         url = f"{supabase_url}/rest/v1/profiles"
         params = {"select": "*", "id": f"eq.{user.id}"}
         
-        with httpx.Client() as client:
-            resp = client.get(url, headers=headers, params=params)
+        # Configure httpx client with proper timeout and SSL settings
+        # Use verify=True but with increased timeout to handle SSL handshake issues
+        client_config = {
+            "timeout": httpx.Timeout(30.0, connect=10.0),
+            "verify": True,  # Keep SSL verification enabled for security
+            "follow_redirects": True,
+        }
+        
+        # Retry logic for transient SSL errors
+        max_retries = 3
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                with httpx.Client(**client_config) as client:
+                    resp = client.get(url, headers=headers, params=params)
+                break  # Success, exit retry loop
+            except (httpx.ConnectError, ssl.SSLError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    # Wait briefly before retry
+                    import time
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                else:
+                    # Last attempt failed, raise the error
+                    raise
             
         data = resp.json() if resp.status_code == 200 else []
         profile_data: Any = data[0] if data else None
@@ -91,8 +117,19 @@ async def get_current_user(
                 "subscription_credits": 0,
                 "topup_credits": 0
             }
-            with httpx.Client() as client:
-                 resp_ins = client.post(url, headers=headers, json=new_profile)
+            
+            for attempt in range(max_retries):
+                try:
+                    with httpx.Client(**client_config) as client:
+                        resp_ins = client.post(url, headers=headers, json=new_profile)
+                    break
+                except (httpx.ConnectError, ssl.SSLError) as e:
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                    else:
+                        raise
             
             if resp_ins.status_code in (200, 201):
                  ins_data = resp_ins.json()

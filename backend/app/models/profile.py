@@ -25,8 +25,6 @@ class ExperienceBlock(SQLModel, table=True):
         sa_column=Column(JSON)
     )  # {leadership, technical}
 
-    # Vector DB reference
-    embedding_id: Optional[str] = None
 
     # User ownership
     user_email: str = Field(default="kd_0047@163.com", index=True)

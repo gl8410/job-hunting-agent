@@ -41,7 +41,6 @@ class ExperienceBlockResponse(BaseModel):
     tech_stack: List[str]
     content_star: Dict[str, str]
     perspectives: Optional[Dict[str, str]] = None
-    embedding_id: Optional[str] = None
 
     class Config:
         from_attributes = True

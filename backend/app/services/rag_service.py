@@ -1,11 +1,13 @@
 """
 Agent C - RAG Service (Consultant)
-Matches experience blocks to job requirements using vector similarity
+Matches experience blocks to job requirements using direct LLM analysis
 """
-from typing import Dict, Any, List
-from app.integrations.vector import vector_client
+from typing import Dict, Any, List, Optional
 from app.integrations.llm import call_llm_json
 from app.core.logging_config import get_logger
+from app.models.profile import ExperienceBlock
+from app.core.db import engine
+from sqlmodel import Session, select
 
 logger = get_logger(__name__)
 
@@ -13,52 +15,59 @@ async def match_experience_to_job(
     job_description: str,
     job_skills: List[str],
     user_email: str,
-    top_k: int = 5
+    top_k: int = 5,
+    language: str = "en"
 ) -> Dict[str, Any]:
     """
-    Match user's experience blocks to job requirements
-    Returns: {
-        "matched_block_ids": List[str],
-        "match_level": str,  # Low, Medium, Good
-        "match_reasoning": str,
-        "match_advantages": List[str],
-        "match_weaknesses": List[str]
-    }
+    Match user's experience blocks to job requirements using LLM
     """
-    logger.info(f"Starting experience matching (top_k={top_k})")
-    # Step 1: Query vector database for relevant experience blocks
-    query_results = await vector_client.query_relevant_experience(
-        job_description,
-        user_email=user_email,
-        top_k=top_k
-    )
-    logger.info(f"Vector search returned {len(query_results.get('ids', [[]])[0]) if query_results.get('ids') else 0} results")
+    logger.info(f"Starting experience matching using LLM for {user_email} (Lang: {language})")
     
-    # Extract matched block IDs
-    matched_block_ids = query_results.get("ids", [[]])[0] if query_results.get("ids") else []
-    matched_documents = query_results.get("documents", [[]])[0] if query_results.get("documents") else []
-    matched_metadatas = query_results.get("metadatas", [[]])[0] if query_results.get("metadatas") else []
-    distances = query_results.get("distances", [[]])[0] if query_results.get("distances") else []
+    with Session(engine) as session:
+        statement = select(ExperienceBlock).where(ExperienceBlock.user_email == user_email)
+        blocks = session.exec(statement).all()
     
-    # Step 2: Prepare context for LLM analysis
-    context = f"Job Description:\n{job_description}\n\n"
-    context += f"Required Skills: {', '.join(job_skills)}\n\n"
-    context += "Matched Experience Blocks:\n"
-    
-    for i, (doc, meta, dist) in enumerate(zip(matched_documents, matched_metadatas, distances)):
-        context += f"\nBlock {i+1} (Similarity: {1-dist:.2f}):\n"
-        context += f"Title: {meta.get('title', 'N/A')}\n"
-        context += f"Company: {meta.get('company', 'N/A')}\n"
-        context += f"Tags: {meta.get('tags', 'N/A')}\n"
-        context += f"Tech Stack: {meta.get('tech_stack', 'N/A')}\n"
-        context += f"Content:\n{doc}\n"
-        context += "---\n"
-    
-    # Step 3: Use LLM to analyze match quality
-    system_prompt = """You are a career consultant analyzing job-candidate fit.
-Analyze the match between the candidate's experience and the job requirements.
+    if not blocks:
+        reasoning = "库中未找到任何经验块。" if language == "zh" else "No experience blocks found in your library."
+        weakness = "未找到相关的经验块" if language == "zh" else "No relevant experience blocks found"
+        return {
+            "matched_block_ids": [],
+            "match_level": "Low",
+            "match_reasoning": reasoning,
+            "match_advantages": [],
+            "match_weaknesses": [weakness]
+        }
+
+    experience_context = ""
+    for b in blocks:
+        star = b.content_star or {}
+        experience_context += f"""
+ID: {b.id}
+Experience Name: {b.experience_name}
+Company: {b.company}
+Role: {b.role}
+Situation: {star.get('situation', '')}
+Task: {star.get('task', '')}
+Action: {star.get('action', '')}
+Result: {star.get('result', '')}
+Tags: {', '.join(b.tags)}
+Tech Stack: {', '.join(b.tech_stack)}
+---
+"""
+
+    lang_instruction = "IMPORTANT: You MUST provide 'match_reasoning', 'match_advantages', and 'match_weaknesses' in Chinese (简体中文)." if language == "zh" else "IMPORTANT: You MUST provide all analysis fields in English."
+
+    system_prompt = f"""You are a career consultant analyzing job-candidate fit.
+Your task is to analyze the provided job description and select the BEST matching experience blocks from the candidate's library.
+
+{lang_instruction}
+
+Rules:
+1. Select at most {top_k} experience blocks that are most relevant to the job.
+2. Provide a detailed analysis of the match.
 
 Return a JSON object with:
+- matched_block_ids: List of IDs (integers) of the selected experience blocks
 - match_level: "Low", "Medium", or "Good"
 - match_reasoning: Brief explanation of the overall match quality
 - match_advantages: List of 3-5 key strengths/advantages
@@ -66,14 +75,20 @@ Return a JSON object with:
 
 Be honest and constructive."""
 
-    user_prompt = f"""Analyze this job-candidate match:
+    user_prompt = f"""
+Job Description:
+{job_description}
 
-{context}
+Required Skills: {', '.join(job_skills)}
 
-Provide your analysis in JSON format."""
+Candidate's Experience Blocks:
+{experience_context}
+
+Provide your selection and analysis in JSON format."""
 
     try:
-        analysis = await call_llm_json(user_prompt, system_prompt)
+        analysis = await call_llm_json(user_prompt, system_prompt, model_type="analysis")
+        matched_block_ids = [str(bid) for bid in analysis.get("matched_block_ids", [])]
         
         return {
             "matched_block_ids": matched_block_ids,
@@ -84,65 +99,11 @@ Provide your analysis in JSON format."""
         }
     except Exception as e:
         logger.error(f"Error matching experience to job: {e}", exc_info=True)
+        reasoning = "由于错误，无法进行详细分析。" if language == "zh" else "Unable to perform detailed analysis due to an error."
         return {
-            "matched_block_ids": matched_block_ids,
+            "matched_block_ids": [],
             "match_level": "Medium",
-            "match_reasoning": "Unable to perform detailed analysis",
+            "match_reasoning": reasoning,
             "match_advantages": [],
             "match_weaknesses": []
         }
-
-async def calculate_fit_score(
-    matched_blocks: List[Dict[str, Any]],
-    required_skills: List[str]
-) -> float:
-    """
-    Calculate a numerical fit score (0-100)
-    """
-    if not matched_blocks or not required_skills:
-        return 0.0
-    
-    # Simple scoring based on skill overlap
-    total_skills = set(required_skills)
-    matched_skills = set()
-    
-    for block in matched_blocks:
-        block_tags = block.get('tags', [])
-        block_tech = block.get('tech_stack', [])
-        matched_skills.update(block_tags)
-        matched_skills.update(block_tech)
-    
-    overlap = len(total_skills.intersection(matched_skills))
-    score = (overlap / len(total_skills)) * 100 if total_skills else 0
-    
-    return min(score, 100.0)
-
-async def generate_match_reasoning(
-    job: Dict[str, Any],
-    blocks: List[Dict[str, Any]]
-) -> str:
-    """
-    Generate detailed reasoning for the match
-    """
-    context = f"Job: {job.get('title', '')} at {job.get('company', '')}\n\n"
-    context += "Candidate Experience:\n"
-    
-    for block in blocks:
-        context += f"- {block.get('title', '')} at {block.get('company', '')}\n"
-        context += f"  Skills: {', '.join(block.get('tags', []))}\n"
-    
-    system_prompt = """You are a career consultant. Explain why this candidate is a good (or not so good) fit for this job.
-Be specific and reference actual experience. Keep it to 2-3 sentences."""
-
-    user_prompt = f"""Explain the match quality:
-
-{context}"""
-
-    try:
-        from app.integrations.llm import call_llm
-        reasoning = await call_llm(user_prompt, system_prompt)
-        return reasoning
-    except Exception as e:
-        logger.error(f"Error generating reasoning: {e}")
-        return "Match analysis unavailable."
-

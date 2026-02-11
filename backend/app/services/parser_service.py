@@ -9,7 +9,7 @@ from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-async def parse_job_description(description: str) -> Dict[str, Any]:
+async def parse_job_description(description: str, language: str = "en") -> Dict[str, Any]:
     """
     Parse job description to extract structured information
     Returns: {
@@ -30,8 +30,13 @@ async def parse_job_description(description: str) -> Dict[str, Any]:
     from datetime import datetime
     current_date = datetime.now().strftime("%Y-%m-%d")
     
+    lang_instruction = "IMPORTANT: You MUST provide the 'brief_description' in Chinese (简体中文)." if language == "zh" else "IMPORTANT: You MUST provide the 'brief_description' in English."
+
     system_prompt = f"""You are a job description parser. Extract structured information from job postings.
 Today's date is {current_date}.
+
+{lang_instruction}
+
 Return a JSON object with the following fields:
 - title: The job title
 - company: The company name (or recruitment agency name if specified)

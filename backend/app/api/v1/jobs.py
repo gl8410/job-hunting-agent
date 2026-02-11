@@ -1,9 +1,9 @@
 """
 Job API Routes
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from app.api.deps import get_db, get_current_user
@@ -109,6 +109,7 @@ async def delete_job(
 @router.post("/jobs/{job_id}/analyze", response_model=JobResponse)
 async def analyze_job(
     job_id: int,
+    accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -133,7 +134,14 @@ async def analyze_job(
         job.description_markdown = clean_html_to_markdown(job.description_raw)
     
     if job.description_markdown:
-        parsed_data = await parse_job_description(job.description_markdown)
+        # Extract language from header
+        lang = "en"
+        if accept_language:
+            first_lang = accept_language.split(',')[0].split('-')[0].lower()
+            if first_lang in ["zh", "en"]:
+                lang = first_lang
+
+        parsed_data = await parse_job_description(job.description_markdown, language=lang)
         job.salary_range = parsed_data.get("salary_range")
         job.published_at = parsed_data.get("published_at")
         job.key_skills = parsed_data.get("key_skills", [])
@@ -162,6 +170,7 @@ async def analyze_job(
 @router.post("/jobs/{job_id}/research-company", response_model=JobResponse)
 async def research_job_company(
     job_id: int,
+    accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -183,8 +192,16 @@ async def research_job_company(
         raise HTTPException(status_code=400, detail="Job must have a company name to research")
     
     logger.info(f"Triggering research for job {job_id}: {job.company}")
+    
+    # Extract language from header (e.g., "zh-CN,zh;q=0.9,en;q=0.8" -> "zh")
+    lang = "en"
+    if accept_language:
+        first_lang = accept_language.split(',')[0].split('-')[0].lower()
+        if first_lang in ["zh", "en"]:
+            lang = first_lang
+
     # Agent B: Research company
-    analysis_data = await research_company(job.company)
+    analysis_data = await research_company(job.company, language=lang)
     # Extract raw search results if present
     if "tavily_raw_results" in analysis_data:
         job.tavily_results = analysis_data.pop("tavily_raw_results")
@@ -202,6 +219,7 @@ async def research_job_company(
 async def generate_job_resume(
     job_id: int,
     template_id: int = None,
+    accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -217,6 +235,13 @@ async def generate_job_resume(
         raise HTTPException(status_code=403, detail="Not authorized to generate resume for this job")
     
     logger.info(f"Generating resume for job {job_id}")
+
+    # Extract language from header
+    lang = "en"
+    if accept_language:
+        first_lang = accept_language.split(',')[0].split('-')[0].lower()
+        if first_lang in ["zh", "en"]:
+            lang = first_lang
     
     # Procedure Step 1: Combine job detail, template, and ALL working experience
     statement = select(ExperienceBlock).where(ExperienceBlock.user_email == job.user_email)
@@ -257,12 +282,14 @@ async def generate_job_resume(
             "description_markdown": job.description_markdown
         },
         matched_blocks=experience_context,
-        template=template
+        template=template,
+        language=lang
     )
     
     job.generated_resume = resume
     job.resume_generated_at = datetime.utcnow()
     job.selected_template_id = str(template_id) if template_id else None
+    job.generated_content_lang = lang
     job.status = "DRAFTING"
     job.updated_at = datetime.utcnow()
     
@@ -275,6 +302,7 @@ async def generate_job_resume(
 @router.post("/jobs/{job_id}/generate-cover-letter", response_model=JobResponse)
 async def generate_job_cover_letter(
     job_id: int,
+    accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -290,6 +318,14 @@ async def generate_job_cover_letter(
         raise HTTPException(status_code=403, detail="Not authorized to generate cover letter for this job")
     
     logger.info(f"Generating cover letter for job {job_id}")
+
+    # Extract language from header
+    lang = "en"
+    if accept_language:
+        first_lang = accept_language.split(',')[0].split('-')[0].lower()
+        if first_lang in ["zh", "en"]:
+            lang = first_lang
+
     # Get matched experience blocks
     matched_blocks = []
     if job.matched_block_ids:
@@ -298,7 +334,7 @@ async def generate_job_cover_letter(
             if block:
                 matched_blocks.append({
                     "id": block.id,
-                    "title": block.title,
+                    "title": block.experience_name,
                     "company": block.company,
                     "time_period": block.time_period,
                     "content_star": block.content_star
@@ -313,11 +349,13 @@ async def generate_job_cover_letter(
         },
         matched_blocks=matched_blocks,
         company_analysis=job.company_analysis,
-        generated_resume=job.generated_resume
+        generated_resume=job.generated_resume,
+        language=lang
     )
     
     job.generated_cover_letter = cover_letter
     job.cover_letter_generated_at = datetime.utcnow()
+    job.generated_content_lang = lang
     job.updated_at = datetime.utcnow()
     
     db.add(job)
@@ -325,4 +363,3 @@ async def generate_job_cover_letter(
     db.refresh(job)
     logger.info(f"Successfully generated cover letter for job {job_id}")
     return job
-

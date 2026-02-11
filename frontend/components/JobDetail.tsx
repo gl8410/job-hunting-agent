@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { JobOpportunity, ExperienceBlock, JobStatus, ResumeTemplate } from '../types';
 import { Sparkles, BrainCircuit, ExternalLink, Info, CheckCircle, AlertTriangle, Building, Banknote, Calendar, Clock, Globe, FileText, X, Search, FileSearch, ShieldCheck, Zap, TrendingUp, ShieldAlert, ChevronDown, RefreshCw, MapPin, Layers } from 'lucide-react';
 import { analyzeJobDescription, matchExperienceBlocks, generateApplicationMaterials, reinjectJob, researchCompany, generateResumeForJob, generateCoverLetterForJob } from '../services/geminiService';
@@ -12,14 +13,23 @@ interface JobDetailProps {
 }
 
 export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, onUpdateJob, onRefreshJobs }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
   const [showResearchModal, setShowResearchModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(templates[0]?.id || '');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+
+  React.useEffect(() => {
+    if (templates.length > 0 && !selectedTemplate) {
+      // Find latest uploaded (highest ID)
+      const sorted = [...templates].sort((a, b) => Number(b.id) - Number(a.id));
+      setSelectedTemplate(sorted[0].id.toString());
+    }
+  }, [templates, selectedTemplate]);
 
   const handleResearchCompany = async () => {
     if (!job.id) return;
-    setLoading('Researching Company...');
+    setLoading(t('common.loading'));
     try {
       const updatedJob = await researchCompany(job.id);
       onUpdateJob(updatedJob);
@@ -33,11 +43,10 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
 
   const handleReinject = async () => {
     if (!job.id) return;
-    setLoading('Re-ingesting and Analyzing Job...');
+    setLoading(t('common.loading'));
     try {
         const updatedJob = await reinjectJob(job.id);
         onUpdateJob(updatedJob);
-        // Refresh job list after successful re-ingestion
         if (onRefreshJobs) {
           onRefreshJobs();
         }
@@ -49,7 +58,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
   };
 
   const handleMatch = async () => {
-    setLoading('Matching Experience...');
+    setLoading(t('common.loading'));
     try {
       const { matches, level, reasoning, advantages, weaknesses } = await matchExperienceBlocks(job, blocks);
       const matchedIds = matches.filter(m => m.score > 60).map(m => m.blockId);
@@ -71,7 +80,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
 
   const handleGenerateDoc = async (type: 'resume' | 'cover_letter') => {
     if (!job.id) return;
-    setLoading(`Generating ${type === 'resume' ? 'Resume' : 'Cover Letter'}...`);
+    setLoading(t('common.loading'));
     try {
       let updatedJob: JobOpportunity;
       if (type === 'resume') {
@@ -103,59 +112,10 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
   return (
     <div className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
       
-      {/* Loading Overlay */}
       {loading && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-blue-600 font-medium animate-pulse">{loading}</p>
-        </div>
-      )}
-
-      {/* Full Research Modal */}
-      {showResearchModal && job.company_analysis && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div className="flex items-center gap-3">
-                   <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
-                      <FileSearch size={24} />
-                   </div>
-                   <div>
-                      <h3 className="text-xl font-bold text-slate-800">Deep Research Log: {job.company}</h3>
-                      <p className="text-sm text-slate-500">Aggregated from simulated Tavily API results</p>
-                   </div>
-                </div>
-                <button onClick={() => setShowResearchModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                   <X size={24} className="text-slate-400" />
-                </button>
-             </div>
-             <div className="flex-1 overflow-y-auto p-8 prose prose-slate max-w-none">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed font-mono text-sm bg-slate-50 p-6 rounded-xl border border-slate-200">
-                   {job.company_analysis.detailed_research_log}
-                </div>
-                
-                <div className="mt-8 space-y-4">
-                   <h4 className="text-lg font-bold border-b pb-2">Verification Sources</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {job.company_analysis.rawSources?.map((src, i) => (
-                         <a key={i} href={src.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-all group">
-                            <Globe size={16} className="text-slate-400 group-hover:text-blue-500" />
-                            <span className="text-sm text-slate-600 group-hover:text-blue-700 font-medium truncate">{src.title}</span>
-                            <ExternalLink size={14} className="ml-auto opacity-0 group-hover:opacity-100" />
-                         </a>
-                      ))}
-                   </div>
-                </div>
-             </div>
-             <div className="p-6 border-t border-slate-100 bg-slate-50 text-right">
-                <button 
-                  onClick={() => setShowResearchModal(false)}
-                  className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors shadow-sm"
-                >
-                  Close Research
-                </button>
-             </div>
-          </div>
         </div>
       )}
 
@@ -166,7 +126,6 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
         <section className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-4">
-              {/* STATUS DROPDOWN */}
               <div className="relative group">
                 <select 
                   value={job.status}
@@ -174,215 +133,196 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
                   className={`appearance-none text-xs font-black uppercase pl-3 pr-8 py-2 rounded-lg border outline-none transition-all cursor-pointer shadow-sm min-w-[120px] ${getStatusStyle(job.status)}`}
                 >
                   {Object.values(JobStatus).map(status => (
-                    <option key={status} value={status} className="bg-white text-slate-800 font-medium">{status}</option>
+                    <option key={status} value={status} className="bg-white text-slate-800 font-medium">{t(`common.${status.toLowerCase()}`)}</option>
                   ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-2.5 top-2.5 pointer-events-none opacity-50" />
               </div>
 
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Globe className="text-blue-500" size={24} /> Job Details
+                <Globe className="text-blue-500" size={24} /> {t('job_detail.title')}
               </h2>
             </div>
             
-            <div className="text-right flex items-center gap-3">
-              <div>
-                <span className="text-xs font-bold uppercase text-slate-400 block">Ingest Time</span>
-                <span className="text-sm text-slate-700">{new Date(job.created_at).toLocaleString()}</span>
-              </div>
-              <button
-                onClick={handleReinject}
-                className="p-2 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 rounded-lg transition-all"
-                title="Re-ingest/Re-analyze"
-              >
-                <RefreshCw size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase">Title</label>
-                <div className="font-bold text-lg text-slate-900">{job.title}</div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase">Company</label>
-                <div className="text-slate-700">{job.company}</div>
-              </div>
-              <div className="flex gap-4">
-                 <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><Layers size={12}/> Department</label>
-                    <div className="text-slate-700">{job.department || '—'}</div>
-                 </div>
-                 <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><MapPin size={12}/> Location</label>
-                    <div className="text-slate-700">{job.location || '—'}</div>
-                 </div>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                 <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><Banknote size={12}/> Salary Range</label>
-                 <div className="text-slate-700 font-medium bg-green-50 text-green-700 px-3 py-1 rounded-md inline-block border border-green-100">
-                    {job.salary_range || 'Not specified'}
-                 </div>
-              </div>
-              <div className="flex gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><Globe size={12}/> Platform</label>
-                    <div className="text-slate-700 capitalize">{job.platform}</div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><Calendar size={12}/> Published</label>
-                    <div className="text-slate-700">{job.published_at || 'Unknown'}</div>
-                  </div>
-              </div>
-              <div>
-                 <label className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1"><ExternalLink size={12}/> Link</label>
-                 <a href={job.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate block text-sm">
-                    {job.url || 'No URL'}
-                 </a>
+            <div className="text-right">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('job_detail.ingest_time')}</div>
+              <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">
+                <span>{new Date(job.created_at).toLocaleString()}</span>
+                <button 
+                  onClick={handleReinject}
+                  className="p-1.5 hover:bg-slate-100 rounded-md transition-colors group"
+                  title="Re-ingest original data"
+                >
+                  <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                </button>
               </div>
             </div>
           </div>
 
-          {job.brief_description && (
-             <div className="bg-blue-50/50 p-6 rounded-lg border border-blue-100 mt-6 relative">
-                 <div className="absolute top-4 right-4 text-blue-200">
-                     <Info size={48} className="opacity-20" />
-                 </div>
-                 <h3 className="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wide">Brief Description</h3>
-                 <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                     {job.brief_description}
-                 </div>
-             </div>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">{t('job_detail.role_title')}</label>
+                <div className="text-2xl font-black text-slate-900 leading-tight">{job.title}</div>
+              </div>
+              
+              <div className="relative group">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">{t('job_detail.company')}</label>
+                <div className="text-lg font-bold text-slate-700">{job.company}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                    <Layers size={14} /> {t('job_detail.department')}
+                  </label>
+                  <div className="text-slate-600 font-medium">{job.department || '—'}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                    <MapPin size={14} /> {t('job_detail.location')}
+                  </label>
+                  <div className="text-slate-600 font-medium">{job.location || '—'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                  <Banknote size={14} /> {t('job_detail.salary')}
+                </label>
+                {job.salary_range ? (
+                  <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-lg border border-emerald-100 block w-fit">
+                    {job.salary_range}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">Not specified</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                    <Globe size={14} /> {t('job_detail.platform')}
+                  </label>
+                  <div className="text-slate-700 font-bold">{job.platform}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                    <Calendar size={14} /> {t('job_detail.published')}
+                  </label>
+                  <div className="text-slate-700 font-bold">{job.published_at || '—'}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                  <ExternalLink size={14} /> {t('job_detail.link')}
+                </label>
+                <a 
+                  href={job.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 break-all text-sm font-medium transition-colors line-clamp-2 hover:underline"
+                >
+                  {job.url}
+                </a>
+              </div>
+            </div>
+          </div>
         </section>
+
+        {/* BRIEF DESCRIPTION */}
+        {job.brief_description && (
+          <section className="bg-white rounded-xl border-2 border-blue-50 p-6 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+            <div className="flex items-center gap-2 mb-4 text-blue-700">
+              <h2 className="text-sm font-black uppercase tracking-widest">{t('job_detail.brief')}</h2>
+              <div className="flex-1 h-px bg-blue-100"></div>
+              <Info size={18} className="opacity-40" />
+            </div>
+            <p className="text-slate-600 leading-relaxed font-medium">
+              {job.brief_description}
+            </p>
+          </section>
+        )}
 
         {/* SECTOR 2: Company Analysis */}
         <section className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-center mb-6">
              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Building className="text-purple-500" size={24} /> Company Analysis
+                <Building className="text-purple-500" size={24} /> {t('job_detail.company_analysis')}
              </h2>
              <button
                onClick={handleResearchCompany}
                className="text-sm px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium"
              >
-               Company Research
+               {t('job_detail.research_button')}
              </button>
           </div>
 
           {job.company_analysis ? (
              <div className="space-y-6 animate-fade-in-up">
-                {/* Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase">Established</span>
+                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase tracking-wider">{t('job_detail.established')}</span>
                       <span className="font-semibold text-slate-700">{job.company_analysis.establishTime}</span>
                    </div>
                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase">Employees</span>
+                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase tracking-wider">{t('job_detail.employees')}</span>
                       <span className="font-semibold text-slate-700">{job.company_analysis.employeeCount}</span>
                    </div>
-                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
-                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase">Revenue Model</span>
+                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase tracking-wider">{t('job_detail.revenue')}</span>
                       <span className="font-semibold text-slate-700">{job.company_analysis.revenueModel}</span>
                    </div>
-                </div>
-
-                {/* Cultural & Strategic Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                       <h3 className="font-bold text-slate-700 mb-2 text-sm flex items-center gap-2 tracking-wide">
-                          <Zap size={16} className="text-blue-500" /> Culture & Environment
-                       </h3>
-                       <p className="text-sm text-slate-600 leading-relaxed">{job.company_analysis.culture}</p>
-                    </div>
-                    <div className="p-4 bg-emerald-50/30 rounded-xl border border-emerald-100/50">
-                       <h3 className="font-bold text-emerald-700 mb-2 text-sm flex items-center gap-2 tracking-wide">
-                          <TrendingUp size={16} className="text-emerald-500" /> Prospect Analysis
-                       </h3>
-                       <p className="text-sm text-emerald-800 leading-relaxed">{job.company_analysis.prospectAnalysis}</p>
-                    </div>
-                </div>
-
-                {/* Risk and Concerns Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-amber-50/30 rounded-xl border border-amber-100/50">
-                       <h3 className="font-bold text-amber-700 mb-2 text-sm flex items-center gap-2 tracking-wide">
-                          <ShieldAlert size={16} className="text-amber-500" /> Risk Analysis
-                       </h3>
-                       <p className="text-sm text-amber-800 leading-relaxed">{job.company_analysis.riskAnalysis}</p>
-                    </div>
-                    
-                    {job.company_analysis.negativeNews && job.company_analysis.negativeNews !== 'None found' ? (
-                       <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3 items-start shadow-sm">
-                          <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                          <div>
-                             <h4 className="text-sm font-bold text-red-700">Potential Concerns</h4>
-                             <p className="text-sm text-red-600 leading-relaxed">{job.company_analysis.negativeNews}</p>
-                          </div>
-                       </div>
-                    ) : (
-                        <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center italic text-slate-400 text-sm">
-                            No significant negative news found.
-                        </div>
-                    )}
-                </div>
-
-                {/* Job Seeker Brief (Bottom) */}
-                <div className="pt-2">
-                   <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase tracking-widest text-center flex items-center justify-center gap-3">
-                      <div className="h-px w-8 bg-slate-200"></div>
-                      Job Seeker Brief
-                      <div className="h-px w-8 bg-slate-200"></div>
-                   </h3>
-                   <p className="text-sm text-slate-700 bg-blue-50 p-4 rounded-xl border border-blue-100 font-medium leading-relaxed shadow-sm italic text-center">
-                      "{job.company_analysis.seekerBrief}"
-                   </p>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                   <div className="flex gap-4">
-                      <button 
-                        onClick={() => setShowSources(!showSources)}
-                        className="text-sm text-slate-500 hover:text-blue-600 flex items-center gap-1 font-medium transition-colors"
-                      >
-                        <Globe size={14} /> {showSources ? 'Hide Links' : 'Sources'}
-                      </button>
-                      <button 
-                        onClick={() => setShowResearchModal(true)}
-                        className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1 font-bold transition-colors"
-                      >
-                        <Search size={14} /> See Detail
-                      </button>
+                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <span className="text-xs text-slate-400 block mb-1 font-bold uppercase tracking-wider">{t('job_detail.culture')}</span>
+                      <span className="font-semibold text-slate-700">{job.company_analysis.culture}</span>
                    </div>
-                   
-                   {showSources && (
-                      <div className="absolute right-6 bottom-16 bg-white border border-slate-200 shadow-xl rounded-xl p-4 z-10 w-64 animate-fade-in-up">
-                         <div className="flex justify-between items-center mb-2 border-b pb-2">
-                            <span className="text-xs font-bold text-slate-400">RESEARCH SOURCES</span>
-                            <X size={12} className="cursor-pointer text-slate-300 hover:text-slate-600" onClick={() => setShowSources(false)} />
-                         </div>
-                         <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                            {job.company_analysis.rawSources?.map((src, i) => (
-                               <a key={i} href={src.url} target="_blank" rel="noreferrer" className="block text-xs text-blue-600 hover:underline truncate">
-                                  {src.title}
-                               </a>
-                            ))}
-                         </div>
-                      </div>
-                   )}
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block mb-2">{t('job_detail.prospects')}</label>
+                      <p className="text-sm text-slate-600 leading-relaxed font-medium">{job.company_analysis.prospectAnalysis}</p>
+                   </div>
+                   <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-amber-600 block mb-2">{t('job_detail.risks')}</label>
+                      <p className="text-sm text-slate-600 leading-relaxed font-medium">{job.company_analysis.riskAnalysis}</p>
+                   </div>
+                </div>
+
+                <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 font-medium leading-relaxed shadow-sm italic text-center">
+                   "{job.company_analysis.seekerBrief}"
+                </div>
+
+                {job.company_analysis.rawSources && job.company_analysis.rawSources.length > 0 && (
+                   <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">{t('job_detail.sources')}</label>
+                      <ul className="space-y-2">
+                         {job.company_analysis.rawSources.map((source, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm">
+                               <ExternalLink size={14} className="text-blue-500 mt-0.5 shrink-0" />
+                               <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline transition-colors break-all"
+                               >
+                                  {source.title || source.url}
+                               </a>
+                            </li>
+                         ))}
+                      </ul>
+                   </div>
+                )}
              </div>
           ) : (
              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                 <Clock className="mx-auto mb-2 opacity-50" />
-                <p>Waiting for deep research analysis...</p>
+                <p>{t('job_detail.waiting_analysis')}</p>
              </div>
           )}
         </section>
@@ -391,134 +331,109 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
         <section className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
            <div className="flex justify-between items-center mb-6">
              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <BrainCircuit className="text-emerald-500" size={24} /> Match Analysis
+                <BrainCircuit className="text-emerald-500" size={24} /> {t('job_detail.match_analysis')}
              </h2>
              <button 
                onClick={handleMatch}
                className="text-sm px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium"
              >
-               Check Match
+               {t('job_detail.check_match')}
              </button>
            </div>
 
            {job.match_level ? (
-              <div className="animate-fade-in-up space-y-8">
+              <div className="space-y-6">
                  <div className="flex items-center gap-4">
-                    <div className={`px-4 py-2 rounded-lg text-white font-bold text-lg shadow-sm
-                       ${job.match_level === 'Good' ? 'bg-green-500' : job.match_level === 'Medium' ? 'bg-yellow-500' : 'bg-red-500'}`}>
-                       {job.match_level} Fit
+                    <div className={`px-4 py-2 rounded-full font-black uppercase text-sm border-2 ${
+                       job.match_level === 'Good' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                       job.match_level === 'Medium' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                       'bg-red-50 text-red-600 border-red-200'
+                    }`}>
+                       {t('job_detail.match_analysis')}: {job.match_level}
                     </div>
-                    <div className="h-px flex-1 bg-slate-100"></div>
                  </div>
 
-                 {/* 300-word Detailed Reasoning */}
-                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                       <Zap size={14} className="text-yellow-500" /> Comprehensive Match Analysis
-                    </h3>
-                    <div className="text-slate-600 text-sm leading-relaxed prose prose-slate max-w-none">
-                       {job.match_reasoning?.split('\n').map((paragraph, idx) => (
-                          <p key={idx} className="mb-4 last:mb-0">
-                             {paragraph}
-                          </p>
-                       ))}
-                    </div>
+                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">{t('common.reasoning')}</label>
+                    <p className="text-slate-600 leading-relaxed font-medium">{job.match_reasoning}</p>
                  </div>
-                 
-                 {/* Advantages & Weaknesses Grid */}
+
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Advantages */}
-                    <div className="space-y-4">
-                       <h3 className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                          <ShieldCheck size={18} /> Competitive Advantages
-                       </h3>
-                       <div className="space-y-3">
+                    <div className="space-y-3">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                          <CheckCircle size={14} /> {t('common.strengths')}
+                       </label>
+                       <ul className="space-y-2">
                           {job.match_advantages?.map((adv, idx) => (
-                             <div key={idx} className="flex gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                                <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                                <span className="text-sm text-emerald-900 font-medium">{adv}</span>
-                             </div>
+                             <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/50">
+                                <Zap size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                {adv}
+                             </li>
                           ))}
-                       </div>
+                       </ul>
                     </div>
-
-                    {/* Weaknesses */}
-                    <div className="space-y-4">
-                       <h3 className="text-sm font-bold text-amber-700 flex items-center gap-2">
-                          <AlertTriangle size={18} /> Areas for Improvement
-                       </h3>
-                       <div className="space-y-3">
+                    <div className="space-y-3">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
+                          <AlertTriangle size={14} /> {t('common.gaps')}
+                       </label>
+                       <ul className="space-y-2">
                           {job.match_weaknesses?.map((weak, idx) => (
-                             <div key={idx} className="flex gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                                <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={16} />
-                                <span className="text-sm text-amber-900 font-medium">{weak}</span>
-                             </div>
+                             <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 bg-amber-50/50 p-2 rounded-lg border border-amber-100/50">
+                                <ShieldAlert size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                                {weak}
+                             </li>
                           ))}
-                       </div>
+                       </ul>
                     </div>
                  </div>
               </div>
            ) : (
-              <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                <BrainCircuit className="mx-auto mb-2 opacity-50" />
-                <p>Run match analysis to evaluate fit, strengths, and gaps.</p>
+              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                 <Zap className="mx-auto mb-2 opacity-50" />
+                 <p>{t('common.run_match')}</p>
               </div>
            )}
         </section>
-
-        {/* Results Preview (Optional) */}
-        {(job.generated_resume || job.generated_cover_letter) && (
-             <section className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                   <FileText className="text-blue-500" size={24} /> Generated Drafts
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {job.generated_resume && (
-                       <div className="p-4 bg-slate-50 rounded border border-slate-200">
-                          <h4 className="font-bold text-sm mb-2">Resume Draft</h4>
-                          <div className="text-xs text-slate-500 h-32 overflow-hidden">{job.generated_resume.substring(0,200)}...</div>
-                       </div>
-                   )}
-                   {job.generated_cover_letter && (
-                       <div className="p-4 bg-slate-50 rounded border border-slate-200">
-                          <h4 className="font-bold text-sm mb-2">Cover Letter Draft</h4>
-                          <div className="text-xs text-slate-500 h-32 overflow-hidden">{job.generated_cover_letter.substring(0,200)}...</div>
-                       </div>
-                   )}
-                </div>
-             </section>
-        )}
       </div>
 
       {/* FOOTER ACTIONS */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-lg z-20 flex gap-4 items-center">
-         <div className="flex-1 max-w-xs">
-            <select 
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-            >
-                {templates.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.style})</option>
-                ))}
-            </select>
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-lg z-20 flex gap-6 items-center">
+         <div className="flex-1 flex items-center gap-3">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest min-w-fit">{t('common.template')}</label>
+            <div className="relative group flex-1 max-w-xs">
+               <select
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold py-2 pl-4 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all cursor-pointer shadow-sm"
+               >
+                  {templates.map(t => (
+                     <option key={t.id} value={t.id}>
+                        {t.name}
+                     </option>
+                  ))}
+               </select>
+               <ChevronDown size={16} className="absolute right-3 top-2.5 pointer-events-none text-slate-400" />
+            </div>
          </div>
-         <button 
-           onClick={() => handleGenerateDoc('resume')}
-           className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium flex justify-center items-center gap-2"
-         >
-           <Sparkles size={18} /> Generate Resume
-         </button>
-         <button
-           onClick={() => handleGenerateDoc('cover_letter')}
-           disabled={!job.generated_resume}
-           className={`flex-1 px-4 py-2.5 rounded-lg shadow-sm font-medium flex justify-center items-center gap-2 transition-colors
-             ${!job.generated_resume
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-slate-800 text-white hover:bg-slate-900'}`}
-         >
-           <FileText size={18} /> Generate Cover Letter
-         </button>
+
+         <div className="flex gap-4 min-w-fit">
+            <button 
+               onClick={() => handleGenerateDoc('resume')}
+               className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-bold flex justify-center items-center gap-2"
+            >
+               <Sparkles size={18} /> {t('job_detail.generate_resume')}
+            </button>
+            <button
+               onClick={() => handleGenerateDoc('cover_letter')}
+               disabled={!job.generated_resume}
+               className={`px-6 py-2.5 rounded-lg shadow-sm font-bold flex justify-center items-center gap-2 transition-colors
+                  ${!job.generated_resume
+                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                     : 'bg-slate-800 text-white hover:bg-slate-900'}`}
+            >
+               <FileText size={18} /> {t('job_detail.generate_cover_letter')}
+            </button>
+         </div>
       </div>
     </div>
   );

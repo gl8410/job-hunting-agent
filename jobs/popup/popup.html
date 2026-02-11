@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="UTF-8">
+<head>
+  <style>
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #f9fafb;
+    }
+    h3 {
+      margin: 0 0 16px 0;
+      color: #1a1a1a;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      width: 100%; /* Ensure full width */
+    }
+    /* Add spacer to push button to right */
+    h3 span {
+      flex-grow: 1;
+    }
+    .header-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #555;
+      font-size: 14px; /* h5 size */
+      font-weight: 600;
+      padding: 4px 0;
+      margin-left: auto;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .header-btn:hover {
+      color: #1a1a1a;
+      text-decoration: underline;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .primary-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .secondary-btn {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .secondary-btn:hover {
+      background: #d1d5db;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-sizing: border-box; 
+      font-size: 13px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #4b5563;
+      font-weight: 500;
+    }
+    #status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+      min-height: 20px;
+    }
+    .success { color: #10b981; font-weight: 600; }
+    .error { color: #ef4444; font-weight: 600; }
+    .warning { color: #f59e0b; font-weight: 600; }
+    
+    .hidden { display: none !important; }
+    
+    .card {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .user-info {
+      font-size: 12px;
+      color: #6b7280;
+      text-align: center;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <h3>
+    <span>🎯Page Analysis</span>
+    <button id="toggleSettingsBtn" class="header-btn">settings</button>
+  </h3>
+
+  <!-- Main Action View -->
+  <div id="mainView" class="container">
+    <div id="authSection" class="hidden">
+       <div class="user-info">Logged in as: <span id="userEmailDisplay"></span></div>
+       <button id="analyzeBtn" class="primary-btn">Capture & Analyze Job</button>
+       <button id="logoutBtn" class="secondary-btn" style="margin-top: 8px; font-size: 12px; padding: 6px;">Sign Out</button>
+    </div>
+
+    <div id="loginSection" class="card">
+      <div style="text-align:center; margin-bottom:12px; font-weight:600; color:#374151;">Sign In Required</div>
+      <form id="loginForm">
+        <label>Email</label>
+        <input type="email" id="email" required placeholder="name@example.com">
+        
+        <label>Password</label>
+        <input type="password" id="password" required placeholder="••••••••">
+        
+        <button type="submit" class="primary-btn" id="loginBtn">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings View -->
+  <div id="settingsView" class="container hidden">
+    <div class="card">
+      <label>API Base URL</label>
+      <input type="url" id="backendUrl" placeholder="http://localhost:8004">
+      <div style="font-size:11px; color:#9ca3af; margin-bottom:12px;">Back-end API address</div>
+
+      <label>Dashboard URL</label>
+      <input type="url" id="dashboardUrl" placeholder="http://localhost:5173">
+      <div style="font-size:11px; color:#9ca3af; margin-bottom:8px;">Front-end dashboard address</div>
+      
+      <button id="saveSettingsBtn" class="primary-btn">Save Settings</button>
+      <button id="backBtn" class="secondary-btn" style="margin-top:8px;">Back</button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

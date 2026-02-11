@@ -45,6 +45,7 @@ class JobOpportunity(SQLModel, table=True):
     generated_cover_letter: Optional[str] = None
     cover_letter_generated_at: Optional[datetime] = None
     selected_template_id: Optional[str] = None
+    generated_content_lang: Optional[str] = Field(default=None) # en, zh, etc.
 
     # Status tracking
     status: str = Field(default="NEW")  # NEW, ANALYZED, DRAFTING, APPLIED, INTERVIEW, REJECTED

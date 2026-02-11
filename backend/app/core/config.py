@@ -6,12 +6,6 @@ class Settings(BaseSettings):
     # PostgreSQL Configuration
     DATABASE_URL: str
 
-    # ChromaDB Configuration
-    CHROMA_HOST: str = "localhost"
-    CHROMA_PORT: int = 8021
-    CHROMA_CLIENT_TYPE: str = "http"  # 'http' or 'persistent'
-    CHROMA_PERSIST_DIRECTORY: str = "./chroma_data"
-
     # LLM Configuration (Phrase LLM - for Parser)
     PHARSE_LLM_API_KEY: str
     PHARSE_LLM_URL: str = "https://api.siliconflow.cn/v1/chat/completions"
@@ -22,19 +16,13 @@ class Settings(BaseSettings):
     ANALYSIS_LLM_URL: str = "https://hiapi.online/v1/chat/completions"
     ANALYSIS_LLM_MODEL: str = "gemini-3-flash-preview"
 
-    # Embedding Model Configuration
-    EMBEDDING_MODEL: str = "Qwen/Qwen3-Embedding-8B"
-    EMBEDDING_URL: str = "https://api.siliconflow.cn/v1/embeddings"
-    EMBEDDING_DIMENSION: int = 1024
-    EMBEDDING_API_KEY: str
-
     # Application Configuration
     APP_NAME: str = "Job Analysis System"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     
     # CORS Configuration
-    BACKEND_CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3004", "http://localhost:8080", "http://localhost:8875"]
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3004", "http://localhost:8080", "http://localhost:8875", "http://localhost:5173"]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

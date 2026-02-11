@@ -80,6 +80,7 @@ export interface JobOpportunity {
   generated_cover_letter?: string;
   cover_letter_generated_at?: string; // ISO Date string
   selected_template_id?: string;
+  generated_content_lang?: string;
 }
 
 export interface AnalysisResult {
