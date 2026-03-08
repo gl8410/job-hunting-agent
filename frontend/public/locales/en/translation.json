@@ -4,6 +4,8 @@
     "brain": "Brain",
     "resumes": "Resumes",
     "stats": "Stats",
+    "personal": "Template",
+    "introduction": "Introduction",
     "logout": "Log Out"
   },
   "common": {
@@ -84,5 +86,32 @@
     "generate_resume": "Generate Resume",
     "generate_cover_letter": "Generate Cover Letter",
     "ingest_time": "INGEST TIME"
+  },
+  "introduction": {
+    "title": "Welcome to Job Hunter! 🚀",
+    "subtitle": "Your AI-powered copilot for landing your dream job. Let's get started!",
+    "prep_title": "Phase 1: Preparation 🛠️",
+    "prep_desc": "Get your weapons ready before the battle.",
+    "prep_step1_title": "1. Solidify Your Templates",
+    "prep_step1_desc": "A great resume gets you in the door. Download our proven templates, fill in your details, and keep them handy.",
+    "dl_en_cover_t1": "Cover Letter (English) - Standard",
+    "dl_en_resume_t1": "Resume (English) - Standard",
+    "dl_zh_cover_t1": "求职信 (Chinese) - Standard",
+    "dl_zh_resume_t1": "简历 (Chinese) - Standard",
+    "prep_step2_title": "2. Build Your Experience Library",
+    "prep_step2_desc": "Document your wins using the STAR method. Keep it structured in text files.",
+    "dl_en_exp_t1": "Experience Template (English)",
+    "dl_zh_exp_t1": "经验模板 (Chinese)",
+    "hunt_title": "Phase 2: Job Hunting 🎯",
+    "hunt_desc": "Time to find and conquer your next role.",
+    "hunt_step1_title": "1. Ingest Jobs Easily",
+    "hunt_step1_desc": "See a job you like? Snap a screenshot or use our extension to save it instantly.",
+    "dl_extension": "Download Chrome Extension",
+    "hunt_step2_title": "2. Deep Company Analysis",
+    "hunt_step2_desc": "Know who you're talking to. Let AI uncover the company's culture, risks, and health.",
+    "hunt_step3_title": "3. Intelligent Match Analysis",
+    "hunt_step3_desc": "Find out exactly how your experience aligns with the role requirements.",
+    "hunt_step4_title": "4. Generate Tailored Docs",
+    "hunt_step4_desc": "A click away from a perfectly tailored resume and cover letter. Go get 'em!"
   }
 }

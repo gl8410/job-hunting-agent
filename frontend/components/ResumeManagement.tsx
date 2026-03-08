@@ -19,7 +19,7 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
     key: 'resume_generated_at',
     direction: 'desc'
   });
-  
+
   // Column Width State
   const [columnWidths, setColumnWidths] = useState({
     index: 60,
@@ -62,15 +62,15 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
     // For now, let's try setting them to undefined or null on the object we send back, assuming backend handles "set field to null".
     // If backend ignores unset fields, we might need to modify backend to accept explicit None.
     // Based on standard FastAPI/Pydantic `exclude_unset=True`, we need to make sure we SEND the keys with null values.
-    
+
     // However, existing simple generic update in App.tsx just sends the object.
     // Let's create a copy with reset fields.
-    const updatedJob: any = { 
-        ...job, 
-        generated_resume: null, 
-        resume_generated_at: null,
-        generated_cover_letter: null, 
-        cover_letter_generated_at: null 
+    const updatedJob: any = {
+      ...job,
+      generated_resume: null,
+      resume_generated_at: null,
+      generated_cover_letter: null,
+      cover_letter_generated_at: null
     };
 
     onUpdateJob(updatedJob);
@@ -80,13 +80,13 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
     // Parse markdown and convert to docx
     const lines = markdown.split('\n');
     const paragraphs: Paragraph[] = [];
-    
+
     for (const line of lines) {
       if (!line.trim()) {
         paragraphs.push(new Paragraph({ text: '' }));
         continue;
       }
-      
+
       // Headers
       if (line.startsWith('### ')) {
         paragraphs.push(new Paragraph({
@@ -137,18 +137,18 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
         // Process inline formatting (bold, italic)
         const children: TextRun[] = [];
         let currentText = line;
-        
+
         // Simple inline formatting parser
         const boldRegex = /\*\*(.+?)\*\*/g;
         const italicRegex = /\*(.+?)\*/g;
-        
+
         // Replace bold with placeholders to avoid conflicts
         const boldMatches: { text: string; index: number }[] = [];
         let match;
         while ((match = boldRegex.exec(currentText)) !== null) {
           boldMatches.push({ text: match[1], index: match.index });
         }
-        
+
         if (boldMatches.length > 0) {
           let lastIndex = 0;
           for (const boldMatch of boldMatches) {
@@ -165,25 +165,69 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
         } else {
           children.push(new TextRun({ text: currentText }));
         }
-        
+
         paragraphs.push(new Paragraph({
           children,
           spacing: { before: 60, after: 60 }
         }));
       }
     }
-    
+
     const doc = new Document({
       sections: [{
         properties: {},
         children: paragraphs
       }]
     });
-    
+
     return await Packer.toBlob(doc);
   };
 
+  /**
+   * Detect if content is our JSON-wrapped docx base64 payload.
+   * Format: { "type": "docx_b64", "filename": "...", "content": "<base64>" }
+   */
+  const parseDocxPayload = (content: string): { filename: string; content: string } | null => {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && parsed.type === 'docx_b64' && parsed.content && parsed.filename) {
+        return { filename: parsed.filename, content: parsed.content };
+      }
+    } catch {
+      // Not JSON — it's a plain markdown string
+    }
+    return null;
+  };
+
+  const downloadBase64Docx = (base64: string, filename: string) => {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownload = async (content: string, filename: string, format: 'md' | 'docx' = 'docx') => {
+    // Check if content is a docx_b64 JSON payload (new template-based generation)
+    const docxPayload = parseDocxPayload(content);
+    if (docxPayload) {
+      downloadBase64Docx(docxPayload.content, docxPayload.filename);
+      return;
+    }
+
+    // Legacy path: content is markdown
     if (format === 'docx') {
       try {
         const blob = await convertMarkdownToDocx(content);
@@ -273,78 +317,78 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
 
   const renderSortIcon = (key: SortKey) => {
     if (sortConfig?.key !== key) return <ArrowUpDown size={14} className="text-slate-300 ml-1" />;
-    return sortConfig.direction === 'asc' 
+    return sortConfig.direction === 'asc'
       ? <ArrowUp size={14} className="text-blue-600 ml-1" />
       : <ArrowDown size={14} className="text-blue-600 ml-1" />;
   };
 
   return (
     <div className="h-full overflow-y-auto p-8">
-      <div className="w-full"> 
+      <div className="w-full">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <FileCheck className="text-blue-600" /> {t('resumes.title')}
         </h2>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
           <table className="w-full text-left border-collapse table-fixed" style={{ minWidth: '1000px' }}>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
-                <th 
-                    className="relative px-4 py-4 font-semibold w-12 group" 
-                    style={{ width: columnWidths.index }}
+                <th
+                  className="relative px-4 py-4 font-semibold w-12 group"
+                  style={{ width: columnWidths.index }}
                 >
-                    #
-                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'index')} onClick={e => e.stopPropagation()} />
-                </th>
-                <th 
-                    className="relative px-4 py-4 font-semibold group" 
-                    style={{ width: columnWidths.title }}
-                >
-                    {t('resumes.col_title')}
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'title')} onClick={e => e.stopPropagation()} />
-                </th>
-                <th 
-                    className="relative px-4 py-4 font-semibold group" 
-                    style={{ width: columnWidths.company }}
-                >
-                    {t('resumes.col_company')}
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'company')} onClick={e => e.stopPropagation()} />
-                </th>
-                <th 
-                    className="relative px-4 py-4 font-semibold cursor-pointer hover:bg-slate-100 group select-none" 
-                    style={{ width: columnWidths.published }}
-                    onClick={() => handleSort('published_at')}
-                >
-                    <div className="flex items-center">
-                        {t('resumes.col_published')}
-                        {renderSortIcon('published_at')}
-                    </div>
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'published')} onClick={e => e.stopPropagation()} />
+                  #
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'index')} onClick={e => e.stopPropagation()} />
                 </th>
                 <th
-                    className="relative px-4 py-4 font-semibold cursor-pointer hover:bg-slate-100 group select-none"
-                    style={{ width: columnWidths.generated }}
-                     onClick={() => handleSort('resume_generated_at')}
+                  className="relative px-4 py-4 font-semibold group"
+                  style={{ width: columnWidths.title }}
                 >
-                     <div className="flex items-center">
-                        {t('resumes.col_generated')}
-                        {renderSortIcon('resume_generated_at')}
-                    </div>
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'generated')} onClick={e => e.stopPropagation()} />
+                  {t('resumes.col_title')}
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'title')} onClick={e => e.stopPropagation()} />
                 </th>
                 <th
-                    className="relative px-4 py-4 font-semibold group"
-                    style={{ width: columnWidths.language }}
+                  className="relative px-4 py-4 font-semibold group"
+                  style={{ width: columnWidths.company }}
                 >
-                    {t('resumes.col_language')}
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'language')} onClick={e => e.stopPropagation()} />
+                  {t('resumes.col_company')}
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'company')} onClick={e => e.stopPropagation()} />
                 </th>
                 <th
-                    className="relative px-4 py-4 font-semibold text-right group"
-                    style={{ width: columnWidths.actions }}
+                  className="relative px-4 py-4 font-semibold cursor-pointer hover:bg-slate-100 group select-none"
+                  style={{ width: columnWidths.published }}
+                  onClick={() => handleSort('published_at')}
                 >
-                    {t('resumes.col_actions')}
-                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'actions')} onClick={e => e.stopPropagation()} />
+                  <div className="flex items-center">
+                    {t('resumes.col_published')}
+                    {renderSortIcon('published_at')}
+                  </div>
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'published')} onClick={e => e.stopPropagation()} />
+                </th>
+                <th
+                  className="relative px-4 py-4 font-semibold cursor-pointer hover:bg-slate-100 group select-none"
+                  style={{ width: columnWidths.generated }}
+                  onClick={() => handleSort('resume_generated_at')}
+                >
+                  <div className="flex items-center">
+                    {t('resumes.col_generated')}
+                    {renderSortIcon('resume_generated_at')}
+                  </div>
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'generated')} onClick={e => e.stopPropagation()} />
+                </th>
+                <th
+                  className="relative px-4 py-4 font-semibold group"
+                  style={{ width: columnWidths.language }}
+                >
+                  {t('resumes.col_language')}
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'language')} onClick={e => e.stopPropagation()} />
+                </th>
+                <th
+                  className="relative px-4 py-4 font-semibold text-right group"
+                  style={{ width: columnWidths.actions }}
+                >
+                  {t('resumes.col_actions')}
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'actions')} onClick={e => e.stopPropagation()} />
                 </th>
               </tr>
             </thead>
@@ -363,11 +407,10 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
                       : 'Unknown'}
                   </td>
                   <td className="px-4 py-4 text-slate-600 text-sm">
-                    <span className={`px-2 py-1 rounded-md font-medium ${
-                      job.generated_content_lang === 'zh'
+                    <span className={`px-2 py-1 rounded-md font-medium ${job.generated_content_lang === 'zh'
                         ? 'bg-amber-50 text-amber-700'
                         : 'bg-blue-50 text-blue-700'
-                    }`}>
+                      }`}>
                       {job.generated_content_lang === 'zh' ? '中文' : job.generated_content_lang === 'en' ? 'English' : job.generated_content_lang || 'N/A'}
                     </span>
                   </td>
@@ -381,7 +424,7 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
                         <Download size={14} /> {t('resumes.resume')}
                       </button>
                     )}
-                    
+
                     <button
                       onClick={() => handleDownload(job.generated_cover_letter!, `Cover Letter - ${job.company} - ${job.title}.docx`, 'docx')}
                       disabled={!job.generated_cover_letter}

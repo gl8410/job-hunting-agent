@@ -10,8 +10,8 @@ from app.api.deps import get_db, get_current_user
 from app.models.job import JobOpportunity
 from app.models.profile import ExperienceBlock
 from app.models.user import Profile
-from app.schemas.job import JobCreate, JobUpdate, JobResponse, AnalysisResult
-from app.services.parser_service import parse_job_description, extract_job_metadata, clean_html_to_markdown
+from app.schemas.job import JobCreate, JobUpdate, JobResponse, AnalysisResult, JobFromImages
+from app.services.parser_service import parse_job_description, extract_job_metadata, clean_html_to_markdown, parse_job_from_images
 from app.services.research_service import research_company
 from app.services.writer_service import generate_resume, generate_cover_letter
 from app.core.logging_config import get_logger
@@ -62,6 +62,46 @@ async def get_job(
     if job.user_email != current_user_email:
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     return job
+
+@router.post("/jobs/from-images", response_model=JobResponse)
+async def create_job_from_images(
+    job_req: JobFromImages,
+    current_user: Profile = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create and analyze a job straight from images via Vision LLM"""
+    current_user_email = current_user.email
+    logger.info(f"Processing job from {len(job_req.images)} images for user {current_user_email}")
+    
+    if not job_req.images:
+        raise HTTPException(status_code=400, detail="No images provided")
+
+    # 1. Parse from images
+    parsed_data = await parse_job_from_images(job_req.images, language=job_req.language)
+    
+    job_data = {
+        "url": None,
+        "platform": "Scanned Image",
+        "title": parsed_data.get("title") or "Unknown Title",
+        "company": parsed_data.get("company") or "Unknown Company",
+        "department": parsed_data.get("department"),
+        "location": parsed_data.get("location"),
+        "salary_range": parsed_data.get("salary_range"),
+        "published_at": parsed_data.get("published_at"),
+        "brief_description": parsed_data.get("brief_description"),
+        "description_markdown": parsed_data.get("description_markdown"),
+        "key_skills": parsed_data.get("key_skills", []),
+        "status": "ANALYZED",
+        "user_email": current_user_email
+    }
+    
+    db_job = JobOpportunity(**job_data)
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+    
+    # Note: Company analysis is left for manual trigger.
+    return db_job
 
 @router.put("/jobs/{job_id}", response_model=JobResponse)
 async def update_job(
@@ -224,7 +264,10 @@ async def generate_job_resume(
     db: Session = Depends(get_db)
 ):
     """
-    Generate tailored resume for a job (Agent D)
+    Generate tailored resume for a job (Agent D).
+    - If a .docx template is provided: extracts {key} placeholders, generates per-key content,
+      replaces them in the template, and stores the result as base64.
+    - Otherwise: falls back to the legacy markdown generation path.
     """
     current_user_email = current_user.email
     job = db.get(JobOpportunity, job_id)
@@ -233,7 +276,7 @@ async def generate_job_resume(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.user_email != current_user_email:
         raise HTTPException(status_code=403, detail="Not authorized to generate resume for this job")
-    
+
     logger.info(f"Generating resume for job {job_id}")
 
     # Extract language from header
@@ -242,11 +285,11 @@ async def generate_job_resume(
         first_lang = accept_language.split(',')[0].split('-')[0].lower()
         if first_lang in ["zh", "en"]:
             lang = first_lang
-    
-    # Procedure Step 1: Combine job detail, template, and ALL working experience
+
+    # Collect all experience blocks
     statement = select(ExperienceBlock).where(ExperienceBlock.user_email == job.user_email)
     all_blocks = db.exec(statement).all()
-    
+
     experience_context = []
     for block in all_blocks:
         experience_context.append({
@@ -259,40 +302,111 @@ async def generate_job_resume(
             "content_star": block.content_star,
             "perspectives": block.perspectives
         })
-    
+
     # Get template if specified
     template = None
     if template_id:
         from app.models.template import ResumeTemplate
         template = db.get(ResumeTemplate, template_id)
+
+    # --- DOCX TEMPLATE PATH ---
+    if template and getattr(template, 'style', '') == 'docx':
+        import base64
+        from app.services.docx_service import extract_placeholders, replace_placeholders, build_output_filename
+        from app.services.writer_service import generate_content_for_keys
+
+        try:
+            # Decode base64 template content to bytes
+            template_bytes = base64.b64decode(template.template_content)
+
+            # 1. Extract placeholders from the .docx template
+            placeholders = extract_placeholders(template_bytes)
+            if not placeholders:
+                raise HTTPException(status_code=400, detail="No {key} placeholders found in the template .docx file.")
+
+            job_dict = {
+                "title": job.title,
+                "company": job.company,
+                "key_skills": job.key_skills or [],
+                "description_markdown": job.description_markdown
+            }
+
+            # 2. Use LLM to generate content for each placeholder key
+            generated_content = await generate_content_for_keys(
+                placeholders=placeholders,
+                job=job_dict,
+                matched_blocks=experience_context,
+                language=lang
+            )
+
+            # 3. Replace placeholders in the template docx
+            output_bytes = replace_placeholders(template_bytes, generated_content)
+
+            # 4. Build the output filename
+            from datetime import datetime
+            date_str = datetime.now().strftime("%Y%m%d")
+            
+            applicant_name = f"{current_user.last_name or ''}{current_user.first_name or ''}".strip()
+            
+            output_filename = build_output_filename(
+                company=job.company or "",
+                position=job.title or "",
+                applicant=applicant_name,
+                date_str=date_str,
+                doc_type="Resume"
+            )
+
+            # 5. Store result as base64 and save filename for frontend
+            result_b64 = base64.b64encode(output_bytes).decode('utf-8')
+            job.generated_resume = result_b64
+            job.resume_generated_at = datetime.utcnow()
+            job.selected_template_id = str(template_id)
+            job.generated_content_lang = lang
+            job.status = "DRAFTING"
+            job.updated_at = datetime.utcnow()
+
+            # Store output filename in a dedicated field (use brief_description as fallback if no field)
+            # We store it as a JSON-encoded prefix so the frontend can detect and extract it
+            import json as _json
+            job.generated_resume = _json.dumps({
+                "type": "docx_b64",
+                "filename": output_filename,
+                "content": result_b64
+            })
+
+        except Exception as e:
+            logger.error(f"Docx generation failed for job {job_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Docx generation failed: {str(e)}")
+
+    # --- LEGACY MARKDOWN PATH ---
+    else:
+        template_dict = None
         if template:
-            template = {
+            template_dict = {
                 "id": template.id,
                 "name": template.name,
                 "style": template.style,
                 "template_content": template.template_content
             }
-    
-    # Generate resume
-    resume = await generate_resume(
-        job={
-            "title": job.title,
-            "company": job.company,
-            "key_skills": job.key_skills or [],
-            "description_markdown": job.description_markdown
-        },
-        matched_blocks=experience_context,
-        template=template,
-        language=lang
-    )
-    
-    job.generated_resume = resume
-    job.resume_generated_at = datetime.utcnow()
-    job.selected_template_id = str(template_id) if template_id else None
-    job.generated_content_lang = lang
-    job.status = "DRAFTING"
-    job.updated_at = datetime.utcnow()
-    
+
+        resume = await generate_resume(
+            job={
+                "title": job.title,
+                "company": job.company,
+                "key_skills": job.key_skills or [],
+                "description_markdown": job.description_markdown
+            },
+            matched_blocks=experience_context,
+            template=template_dict,
+            language=lang
+        )
+        job.generated_resume = resume
+        job.resume_generated_at = datetime.utcnow()
+        job.selected_template_id = str(template_id) if template_id else None
+        job.generated_content_lang = lang
+        job.status = "DRAFTING"
+        job.updated_at = datetime.utcnow()
+
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -302,12 +416,16 @@ async def generate_job_resume(
 @router.post("/jobs/{job_id}/generate-cover-letter", response_model=JobResponse)
 async def generate_job_cover_letter(
     job_id: int,
+    template_id: int = None,
     accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Generate tailored cover letter for a job (Agent D)
+    Generate tailored cover letter for a job (Agent D).
+    - If a .docx template is provided: extracts {key} placeholders, generates per-key content,
+      replaces them in the template, and stores the result as base64.
+    - Otherwise: falls back to legacy markdown generation.
     """
     current_user_email = current_user.email
     job = db.get(JobOpportunity, job_id)
@@ -316,7 +434,7 @@ async def generate_job_cover_letter(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.user_email != current_user_email:
         raise HTTPException(status_code=403, detail="Not authorized to generate cover letter for this job")
-    
+
     logger.info(f"Generating cover letter for job {job_id}")
 
     # Extract language from header
@@ -339,25 +457,86 @@ async def generate_job_cover_letter(
                     "time_period": block.time_period,
                     "content_star": block.content_star
                 })
-    
-    # Generate cover letter
-    cover_letter = await generate_cover_letter(
-        job={
-            "title": job.title,
-            "company": job.company,
-            "description_markdown": job.description_markdown
-        },
-        matched_blocks=matched_blocks,
-        company_analysis=job.company_analysis,
-        generated_resume=job.generated_resume,
-        language=lang
-    )
-    
-    job.generated_cover_letter = cover_letter
+
+    # Get template if specified
+    template = None
+    if template_id:
+        from app.models.template import ResumeTemplate
+        template = db.get(ResumeTemplate, template_id)
+
+    # --- DOCX TEMPLATE PATH ---
+    if template and getattr(template, 'style', '') == 'docx':
+        import base64, json as _json
+        from app.services.docx_service import extract_placeholders, replace_placeholders, build_output_filename
+        from app.services.writer_service import generate_content_for_keys
+
+        try:
+            if not template.cover_letter_content:
+                raise HTTPException(status_code=400, detail="No cover letter template provided in this template pair.")
+            template_bytes = base64.b64decode(template.cover_letter_content)
+
+            placeholders = extract_placeholders(template_bytes)
+            if not placeholders:
+                raise HTTPException(status_code=400, detail="No {key} placeholders found in the cover letter template .docx file.")
+
+            job_dict = {
+                "title": job.title,
+                "company": job.company,
+                "key_skills": job.key_skills or [],
+                "description_markdown": job.description_markdown
+            }
+
+            generated_content = await generate_content_for_keys(
+                placeholders=placeholders,
+                job=job_dict,
+                matched_blocks=matched_blocks,
+                language=lang
+            )
+
+            output_bytes = replace_placeholders(template_bytes, generated_content)
+
+            date_str = datetime.now().strftime("%Y%m%d")
+            
+            applicant_name = f"{current_user.last_name or ''}{current_user.first_name or ''}".strip()
+            
+            output_filename = build_output_filename(
+                company=job.company or "",
+                position=job.title or "",
+                applicant=applicant_name,
+                date_str=date_str,
+                doc_type="Cover Letter"
+            )
+
+            result_b64 = base64.b64encode(output_bytes).decode('utf-8')
+            job.generated_cover_letter = _json.dumps({
+                "type": "docx_b64",
+                "filename": output_filename,
+                "content": result_b64
+            })
+
+        except Exception as e:
+            logger.error(f"Cover letter docx generation failed for job {job_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Cover letter docx generation failed: {str(e)}")
+
+    # --- LEGACY MARKDOWN PATH ---
+    else:
+        cover_letter = await generate_cover_letter(
+            job={
+                "title": job.title,
+                "company": job.company,
+                "description_markdown": job.description_markdown
+            },
+            matched_blocks=matched_blocks,
+            company_analysis=job.company_analysis,
+            generated_resume=job.generated_resume,
+            language=lang
+        )
+        job.generated_cover_letter = cover_letter
+
     job.cover_letter_generated_at = datetime.utcnow()
     job.generated_content_lang = lang
     job.updated_at = datetime.utcnow()
-    
+
     db.add(job)
     db.commit()
     db.refresh(job)

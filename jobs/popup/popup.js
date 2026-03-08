@@ -1,6 +1,6 @@
 // Default configuration
-const DEFAULT_API_BASE = 'http://127.0.0.1:8004';
-const DEFAULT_DASHBOARD_URL = 'http://127.0.0.1:5173';
+const DEFAULT_API_BASE = 'http://127.0.0.1:6803';
+const DEFAULT_DASHBOARD_URL = 'http://127.0.0.1:7803';
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://yaqdmnskqpibtglwfaza.supabase.co';

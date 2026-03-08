@@ -14,6 +14,10 @@ class CompanyAnalysis(BaseModel):
     rawSources: Optional[List[Dict[str, str]]] = None
     detailed_research_log: Optional[str] = None
 
+class JobFromImages(BaseModel):
+    images: List[str]  # List of base64 encoded strings
+    language: Optional[str] = "en"
+
 class JobCreate(BaseModel):
     url: Optional[str] = None
     platform: str = "Unknown"

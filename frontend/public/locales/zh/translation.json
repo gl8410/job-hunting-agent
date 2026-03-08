@@ -4,6 +4,8 @@
     "brain": "经验库",
     "resumes": "简历管理",
     "stats": "统计",
+    "personal": "模板管理",
+    "introduction": "使用介绍",
     "logout": "退出登录"
   },
   "common": {
@@ -84,5 +86,32 @@
     "generate_resume": "生成简历",
     "generate_cover_letter": "生成求职信",
     "ingest_time": "录入时间"
+  },
+  "introduction": {
+    "title": "欢迎使用求职助手！🚀",
+    "subtitle": "你的 AI 求职领航员。让我们马上开始！",
+    "prep_title": "第一阶段：战前准备 🛠️",
+    "prep_desc": "工欲善其事，必先利其器。",
+    "prep_step1_title": "1. 准备专属模板",
+    "prep_step1_desc": "一份好的简历是敲门砖！下载我们验证过的高分模板，填写真实信息，随时备用。",
+    "dl_en_cover_t1": "求职信 (英文) - 标准版",
+    "dl_en_resume_t1": "简历 (英文) - 标准版",
+    "dl_zh_cover_t1": "求职信 (中文) - 销售岗位",
+    "dl_zh_resume_t1": "简历 (中文) - 标准版",
+    "prep_step2_title": "2. 打造个人经验库",
+    "prep_step2_desc": "使用 STAR 法则记录你的高光时刻。用文本文件结构化保存，AI 会帮你管理。",
+    "dl_en_exp_t1": "经验模板 (英文)",
+    "dl_zh_exp_t1": "经验模板 (中文)",
+    "hunt_title": "第二阶段：主动出击 🎯",
+    "hunt_desc": "发现目标，精准拿捏。",
+    "hunt_step1_title": "1. 极速职位录入",
+    "hunt_step1_desc": "看到心仪的岗位？截图一下或是使用我们的浏览器插件，一键保存职位信息。",
+    "dl_extension": "下载 Chrome 插件",
+    "hunt_step2_title": "2. 深度公司洞察",
+    "hunt_step2_desc": "知己知彼。让 AI 帮你深挖公司文化、风险和发展前景。",
+    "hunt_step3_title": "3. 智能匹配分析",
+    "hunt_step3_desc": "全面评估你的经验与岗位需求的契合度，找出优势与不足。",
+    "hunt_step4_title": "4. 一键生成专属材料",
+    "hunt_step4_desc": "只需点击一下，完美定制的简历和求职信瞬间生成。祝你面试顺利！"
   }
 }

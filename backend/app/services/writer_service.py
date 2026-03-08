@@ -2,6 +2,8 @@
 Agent D - Writer Service
 Generates tailored resumes and cover letters
 """
+import re
+import json
 from typing import Dict, Any, List, Optional
 from app.integrations.llm import call_llm
 from app.core.logging_config import get_logger
@@ -121,3 +123,98 @@ Return ONLY the Markdown content.
 
     cover_letter = await call_llm(user_prompt, system_prompt, temperature=0.7, max_tokens=2000)
     return cover_letter
+
+
+async def generate_content_for_keys(
+    placeholders: Dict[str, str],
+    job: Dict[str, Any],
+    matched_blocks: List[Dict[str, Any]],
+    language: str = "en"
+) -> Dict[str, str]:
+    """
+    Generate content for each placeholder key extracted from a .docx template.
+    
+    placeholders: dict of {key: instruction}  (instruction may be empty string)
+    Returns:      dict of {key: generated_text}
+    """
+    logger.info(f"Generating content for {len(placeholders)} keys: {list(placeholders.keys())} in {language}")
+
+    # Build the candidate experience context (same as generate_resume)
+    context = "Job Information:\n"
+    context += f"Title: {job.get('title', '')}\n"
+    context += f"Company: {job.get('company', '')}\n"
+    context += f"Key Skills Required: {', '.join(job.get('key_skills', []))}\n"
+    context += f"Description Excerpt: {job.get('description_markdown', '')[:1500]}\n\n"
+    context += "Candidate Experience Blocks (All Available):\n"
+
+    for i, block in enumerate(matched_blocks, 1):
+        star = block.get('content_star', {}) or {}
+        context += f"\nBlock {i}:\n"
+        context += f"Title: {block.get('title', '')}\n"
+        context += f"Company: {block.get('company', '')}\n"
+        context += f"Period: {block.get('time_period', '')}\n"
+        context += f"Technologies: {', '.join(block.get('tech_stack', []) or [])}\n"
+        context += f"Situation: {star.get('situation', '')}\n"
+        context += f"Task: {star.get('task', '')}\n"
+        context += f"Action: {star.get('action', '')}\n"
+        context += f"Result: {star.get('result', '')}\n"
+
+    # Describe each key the LLM must generate
+    keys_description = ""
+    for key, instruction in placeholders.items():
+        if instruction:
+            keys_description += f'- "{key}": {instruction}\n'
+        else:
+            keys_description += f'- "{key}": Generate professional content for this resume section.\n'
+
+    lang_instruction = (
+        "ALL generated text MUST be in Chinese (简体中文). Keep technical terms (e.g. Python, LLM, API) in English."
+        if language == "zh"
+        else "ALL generated text MUST be in Professional English."
+    )
+
+    system_prompt = f"""You are an expert resume and cover letter writer specializing in the Hong Kong market.
+{lang_instruction}
+
+IMPORTANT RULES:
+1. YOU MUST ONLY USE FACTS FROM THE PROVIDED CANDIDATE EXPERIENCE BLOCKS. DO NOT hallucinate.
+2. Tailor each section tightly to the job description and required skills.
+3. Keep each section concise and professional.
+4. Return ONLY a valid JSON object — no markdown fences, no explanations, no extra text.
+
+Your response must be a JSON object where EACH of the following keys maps to the generated content string:
+{keys_description}
+"""
+
+    user_prompt = f"""Generate resume/cover letter content for the following job application.
+
+{context}
+
+Return a JSON object with exactly these keys: {json.dumps(list(placeholders.keys()))}
+
+Each value should be the complete, professional text for that section."""
+
+    raw = await call_llm(user_prompt, system_prompt, temperature=0.7, max_tokens=3000)
+
+    # Parse the JSON response
+    try:
+        # Strip any accidental markdown code fences
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r'^```[a-zA-Z]*\n?', '', clean)
+            clean = re.sub(r'\n?```$', '', clean)
+        result = json.loads(clean)
+        # Ensure all keys are present (fall back to empty string if LLM missed one)
+        for key in placeholders:
+            if key not in result:
+                logger.warning(f"LLM did not generate content for key: '{key}'")
+                result[key] = f"[Content for {key} not generated]"
+        return result
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse LLM JSON response: {e}\nRaw: {raw[:500]}")
+        # Return a best-effort extraction: use the raw text for the first key
+        fallback = {key: "" for key in placeholders}
+        if len(placeholders) == 1:
+            key = list(placeholders.keys())[0]
+            fallback[key] = raw
+        return fallback

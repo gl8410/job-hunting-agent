@@ -1,0 +1,190 @@
+EXPERIENCE BLOCK START
+Experience_name: High-Net-Worth Client Acquisition Program
+Company: ABC Automotive Trade Co., Ltd.
+Role: Lead of Sales
+Time period: 2020.01-Present
+Tags: Client Acquisition, Luxury Sales, WeChat Marketing, Private Events
+Tech Stack: CRM, WeChat Social Selling, Market Analysis
+
+Situation:
+During a market downturn, the conversion rate of cold leads generated from online marketing campaigns was significantly decreasing. 
+Task:
+The objective was to revitalize lead conversion and secure high-value sales from a challenging pool of prospects. 
+Action:
+Implemented a "Value-First" WeChat nurturing strategy that provided personalized market insights to prospects prior to pitching. Additionally, spearheaded exclusive 1-on-1 private viewing events tailored specifically for business owners. 
+Result:
+Successfully boosted the lead-to-test-drive conversion rate by 45% and personally closed 12M RMB in sales within a six-month period. 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Large-scale Regional Launch Event closing
+Company: ABC Automotive Trade Co., Ltd.
+Role: Sales Leader
+Time period: 2020.01-Present
+Tags: Event Sales, High-pressure Closing, Regional Record, On-site Booking
+Tech Stack: Public Speaking, Incentive Design, Group Objection Handling
+
+Situation:
+The company needed to secure over 50 deposits for a new vehicle model during a single weekend launch event attended by more than 300 people. 
+Task:
+Lead the on-site sales effort to maximize immediate bookings and establish a strong market entry for the new model. 
+Action:
+Designed a tiered incentive structure to encourage on-site bookings and served as the lead closer on stage, directly handling group objections and creating a sense of urgency among attendees. 
+Result:
+Successfully secured 68 non-refundable deposits, setting a new regional record for the highest single-day sales volume. 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Sales Process Optimization
+Company: ABC Automotive Trade Co., Ltd.
+Role: Sales
+Time period: 2020.01-Present
+Tags: Process Improvement, Training, Lead Management, Conversion Rate
+Tech Stack: Sales Scripts, Psychological Anchoring, Staff Mentoring
+
+Situation:
+Inefficient follow-up procedures were causing a 30% drop-off rate at the critical "invitation to showroom" stage of the sales funnel. 
+Task:
+Restructure the follow-up process to increase the number of physical showroom visits and shorten the overall sales cycle. 
+Action:
+Developed a standardized "7-Step Phone Script" and conducted training sessions for the sales team on psychological anchoring techniques to improve show-up rates. 
+Result:
+Improved the showroom visit rate by 25% and reduced the average sales cycle from 21 days to just 14 days. 
+
+EXPERIENCE BLOCK END
+
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Entrepreneur Networking Strategy
+Company: CDE Auto Group
+Role: Sales
+Time period: 2018.06-2019.12
+Tags: B2B Sales, Networking, Fleet Sales, Business Development
+Tech Stack: Business Chamber Engagement, Relationship Management
+
+Situation:
+Traditional showroom traffic was insufficient to meet the dealership's aggressive year-end growth targets. 
+Task:
+Develop alternative high-yield lead generation channels outside of standard walk-in traffic. 
+Action:
+Proactively joined local business chambers and organized "Executive Test Drive" weekend events specifically designed for small business owners and CEOs. 
+Result:
+Generated 35% of total branch revenue through these new referral networks and direct B2B outreach efforts. 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Objection Handling Excellence
+Company: CDE Auto Group
+Role: Sales
+Time period: 2018.06-2019.12
+Tags: Competitive Positioning, Margin Protection, Premium Service
+Tech Stack: Consultative Selling, Value-based Selling
+
+Situation:
+The dealership faced intense price competition from rival brands during the end-of-year clearance period. 
+Task:
+Maintain sales volume without sacrificing profit margins to aggressive discounting. 
+Action:
+Shifted the sales narrative from "Price" to "Total Cost of Ownership and Service Value," effectively leveraging the company's premium support ecosystem to justify premium pricing. 
+Result:
+Maintained a profit margin 5% higher than the industry average while still successfully hitting all volume targets. 
+
+EXPERIENCE BLOCK END
+
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Luxury Vehicle Sales Management
+Company: ABC Automotive Trade Co., Ltd.
+Role: Head of Sales
+Time period: 2020.01-Present
+Tags: Team Leadership, Luxury Market, Funnel Management
+Tech Stack: CRM Management, Performance Tracking, Sales Strategy
+
+Situation:
+Required to lead a high-performing team in the competitive luxury vehicle market (average unit price: 500k-1.5M RMB). 
+Task:
+Oversee the comprehensive sales funnel from digital lead generation to final contract signing and long-term loyalty. 
+Action:
+Managed a team of 15 sales consultants, providing strategic direction and reviewing performance metrics across all stages of the customer journey. 
+Result:
+Consistently exceeded annual targets by over 120% through disciplined funnel management and team mentoring. 
+
+EXPERIENCE BLOCK END
+
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Digital Lead Nurturing Initiative
+Company: ABC Automotive Trade Co., Ltd.
+Role: Head of Sales
+Time period: 2021.06-Present
+Tags: Social Selling, Content Strategy, Customer Relationship
+Tech Stack: WeChat, Digital Marketing Tools
+
+Situation:
+The transition to digital-first communication required a more sophisticated approach to remote prospect engagement. 
+Task:
+Establish a robust framework for WeChat-based social selling to maintain rapport with high-net-worth individuals. 
+Action:
+Designed and deployed a content-driven nurturing strategy that positioned sales consultants as industry experts rather than just vendors. 
+Result:
+Established a consistent pipeline of qualified digital leads, contributing to the "Best Seller of the Year" recognition in 2023. 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: B2B Fleet & Corporate Sales Expansion
+Company: CDE Auto Group
+Role: Sales Manager
+Time period: 2018.06-2019.12
+Tags: Corporate Accounts, Mentoring, B2B Strategy
+Tech Stack: Fleet Management Analysis, B2B CRM
+
+Situation:
+The dealership needed to diversify its revenue streams by tapping into the corporate fleet market. 
+Task:
+Lead the B2B sales initiative while mentoring junior staff in high-volume dealership operations. 
+Action:
+Identified key corporate stakeholders and developed tailored fleet proposals that highlighted long-term service value over initial purchase price. 
+Result:
+Successfully integrated B2B sales into the branch's core operations, providing a stable foundation for year-on-year growth. 
+
+EXPERIENCE BLOCK END
+
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: Premium After-Sales Loyalty Program
+Company: ABC Automotive Trade Co., Ltd.
+Role: Head of Sales
+Time period: 2020.01-Present
+Tags: Customer Retention, After-sales, Brand Loyalty
+Tech Stack: Customer Lifecycle Management
+
+Situation:
+Maintaining a premium brand image required a seamless transition from the point of sale to long-term ownership. 
+Task:
+Oversee the integration of after-sales loyalty programs into the primary sales workflow. 
+Action:
+Coordinated with the service department to ensure all high-net-worth clients received personalized follow-ups and exclusive access to brand events post-purchase. 
+Result:
+Enhanced overall customer satisfaction and increased the rate of referral-based sales from existing luxury vehicle owners. 
+
+EXPERIENCE BLOCK END

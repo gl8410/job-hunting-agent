@@ -134,3 +134,116 @@ async def call_llm_json(
         
         print(f"Failed to parse LLM response as JSON: {result[:500]}...")
         raise e
+
+async def call_vision_llm_json(
+    images_base64: list[str],
+    prompt: str,
+    system_prompt: str = "You are a helpful assistant. Always respond with valid JSON.",
+    temperature: float = 0.3,
+    max_tokens: int = 4000,
+    timeout: float = 180.0,
+    max_retries: int = 3
+) -> Dict[str, Any]:
+    """
+    Call Analysis LLM with vision capabilities to process images and expect JSON response.
+    
+    Args:
+        images_base64: List of base64 encoded images (without the data:image/png;base64, prefix if possible, or API should handle it).
+        prompt: User prompt
+        system_prompt: System prompt
+        temperature: Temperature for generation
+        max_tokens: Maximum tokens to generate
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+    """
+    url = settings.ANALYSIS_LLM_URL
+    api_key = settings.ANALYSIS_LLM_API_KEY
+    model = settings.ANALYSIS_LLM_MODEL
+    
+    content_parts = [{"type": "text", "text": prompt}]
+    
+    for img_b64 in images_base64:
+        # Ensure correct prefix if missing, though typically we just pass the URL or base64 data depending on provider
+        # Assuming OpenAI compatible API for vision:
+        img_url = f"data:image/jpeg;base64,{img_b64}" if not img_b64.startswith("data:") else img_b64
+        content_parts.append({
+            "type": "image_url",
+            "image_url": {
+                "url": img_url
+            }
+        })
+
+    last_error = None
+    result = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": content_parts}
+                        ],
+                        "temperature": temperature,
+                        "max_tokens": max_tokens
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                result = data["choices"][0]["message"]["content"]
+                break
+        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"Vision LLM request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"Vision LLM request failed after {max_retries} attempts: {e}")
+                raise
+        except Exception as e:
+            print(f"Vision LLM request error: {e}")
+            raise
+            
+    if not result:
+        raise last_error if last_error else Exception("Unknown error in Vision LLM call")
+        
+    import json
+    import re
+    
+    # Try to extract JSON from markdown code block if present
+    json_match = re.search(r'```(?:json)?\s*(\[.*\]|\{.*\})\s*```', result, re.DOTALL)
+    if json_match:
+        result = json_match.group(1)
+    else:
+        # Try to find array first, then object
+        json_match = re.search(r'(\[.*\])', result, re.DOTALL)
+        if json_match:
+            result = json_match.group(1)
+        else:
+            json_match = re.search(r'(\{.*\})', result, re.DOTALL)
+            if json_match:
+                result = json_match.group(1)
+                
+    result = result.strip()
+
+    try:
+        parsed = json.loads(result)
+        return parsed
+    except json.JSONDecodeError as e:
+        if result.startswith('{') and not result.startswith('['):
+            try:
+                wrapped = f'[{result}]'
+                parsed = json.loads(wrapped)
+                return parsed
+            except json.JSONDecodeError:
+                pass
+        
+        print(f"Failed to parse Vision LLM response as JSON: {result[:500]}...")
+        raise e

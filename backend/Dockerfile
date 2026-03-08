@@ -44,7 +44,7 @@ COPY --from=builder /install /install
 COPY . .
 
 # Expose port
-EXPOSE 8004
+EXPOSE 6803
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6803"]

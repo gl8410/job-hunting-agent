@@ -33,6 +33,7 @@ export interface ResumeTemplate {
   description: string;
   style: 'modern' | 'classic' | 'creative';
   template_content?: string;
+  cover_letter_content?: string;
 }
 
 export interface CompanyAnalysis {
@@ -62,18 +63,18 @@ export interface JobOpportunity {
   salary_range?: string;
   published_at?: string;
   created_at: number; // Ingest time
-  
+
   // Sector 2 Data
   company_analysis?: CompanyAnalysis;
-  
+
   // Sector 3 Data
   key_skills?: string[];
-  matched_block_ids?: string[]; 
+  matched_block_ids?: string[];
   match_level?: 'Low' | 'Medium' | 'Good';
   match_reasoning?: string;
   match_advantages?: string[];
   match_weaknesses?: string[];
-  
+
   status: JobStatus;
   generated_resume?: string;
   resume_generated_at?: string; // ISO Date string

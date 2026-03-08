@@ -1,0 +1,184 @@
+EXPERIENCE BLOCK START
+Experience_name: 高净值客户开发计划 
+Company: ABC 汽车贸易有限公司 
+Role: 销售负责人 
+Time period: 2020.01 - 至今 
+Tags: 客户获取、豪华车销售、微信营销、私人活动
+Tech Stack: CRM、微信社交销售、市场分析
+
+Situation:
+在市场低迷时期，通过在线营销活动产生的冷潜客转化率显著下降。 
+Task:
+目标是重振潜客转化率，并从具有挑战性的潜在客户群体中锁定高价值销售。 
+Action:
+实施了“价值优先”的微信孵化策略，在推销前向潜在客户提供个性化的市场洞察。 此外，专门为企业主策划了 1 对 1 的私人鉴赏活动。 
+Result:
+成功将“潜在客户至试驾”的转化率提升了 45%，并在六个月内个人达成了 1200 万人民币的销售额。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 区域性大规模发布会成交 
+Company: ABC 汽车贸易有限公司 
+Role: 销售领队 
+Time period: 2020.01 - 至今 
+Tags: 活动销售、高压成交、区域记录、现场订车
+Tech Stack: 公众演讲、激励机制设计、群体异议处理
+
+Situation:
+公司需要在仅有 300 多人参加的单周末新车型发布会上，锁定 50 多个定金订单。 
+Task:
+领导现场销售工作，最大限度地实现即时订车，并为新车型建立强大的市场切入点。 
+Action:
+为现场预订设计了阶梯式激励结构，并担任舞台上的首席成交员，直接处理群体异议并营造紧迫感。 
+Result:
+成功锁定了 68 个不可退定金，创下了该地区单日最高销售量的记录。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 销售流程优化 
+Company: ABC 汽车贸易有限公司 
+Role: 销售
+ Time period: 2020.01 - 至今 
+Tags: 流程改进、培训、潜客管理、转化率
+Tech Stack: 销售脚本、心理锚定、员工指导
+
+Situation:
+低效的跟进程序导致销售漏斗中关键的“邀约到店”阶段流失率高达 30%。 
+Task:
+重构跟进流程，以增加实际到店人数并缩短整体销售周期。 
+Action:
+开发了标准化的“7 步电话脚本”，并对销售团队进行了心理锚定技术培训，以提高到店率。 
+Result:
+到店率提升了 25%，平均销售周期从 21 天缩短至 14 天。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 企业家社交网络策略
+Company: CDE 汽车集团 
+Role: 销售 
+Time period: 2018.06 - 2019.12 
+Tags: B2B 销售、社交、大客户销售、业务开发
+Tech Stack: 商会参与、关系管理
+
+Situation:
+传统的展厅流量不足以满足经销商激进的年终增长目标。 
+Task:
+在标准自然进店流量之外，开发替代性的高产潜客生成渠道。 
+Action:
+主动加入当地商会，并专门为小企业主和 CEO 组织了“高管试驾”周末活动。 
+Result:
+通过转介绍网络和直接的 B2B 外拓活动，贡献了分店总营收的 35%。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 卓越异议处理 
+Company: CDE 汽车集团 
+Role: 销售 
+Time period: 2018.06 - 2019.12 
+Tags: 竞争定位、利润保护、优质服务
+Tech Stack: 顾问式销售、价值销售
+
+Situation:
+在年终清库期间，经销商面临来自竞争对手品牌的激烈价格战。 
+Task:
+在不牺牲利润率进行大幅折扣的情况下，维持销售量。 
+Action:
+将销售叙事从“价格”转向“总拥有成本和服务价值”，有效地利用公司的优质支持生态系统来支撑溢价。 
+Result:
+在成功达成所有销量目标的同时，保持了比行业平均水平高出 5% 的利润率。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 豪华车销售管理 
+Company: ABC 汽车贸易有限公司 
+Role: 销售负责人
+Time period: 2020.01 - 至今 
+Tags: 团队领导、豪华车市场、漏斗管理
+Tech Stack: CRM 管理、绩效跟踪、销售策略
+
+Situation:
+需要在竞争激烈的豪华车市场（平均单价：50-150 万人民币）中领导一支高绩效团队。 
+Task:
+负责从数字化潜客生成到最终合同签署及长期忠诚度的全流程销售漏斗。 
+Action:
+管理 15 名销售顾问团队，提供战略方向并审核客户旅程各阶段的绩效指标。 
+Result:
+通过严谨的漏斗管理和团队指导，连续多年超额完成年度目标 120% 以上。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 数字化潜客孵化计划
+ Company: ABC 汽车贸易有限公司 Role: 销售负责人 Time period: 2021.06 - 至今 
+Tags: 社交销售、内容策略、客户关系
+Tech Stack: 微信、数字化营销工具
+
+Situation:
+向数字化优先沟通的转型，要求对远程客户参与采取更精细的方法。 
+Task:
+建立一个强大的基于微信的社交销售框架，以维持与高净值个人的良好关系。 
+Action:
+设计并部署了内容驱动的孵化策略，将销售顾问定位为行业专家而非单纯的销售员。 
+Result:
+建立了持续的高质量数字化潜客管道，促成了 2023 年获得 ABC 公司“年度销售冠军”的荣誉。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: B2B 战队及企业销售扩张
+Company: CDE 汽车集团 
+Role: 销售经理 
+Time period: 2018.06 - 2019.12 
+Tags: 企业账户、指导、B2B 策略
+Tech Stack: 车队管理分析、B2B CRM
+
+Situation:
+经销商需要通过开拓企业大客户市场来使营收渠道多元化。 
+Task:
+在领导 B2B 销售计划的同时，指导初级员工进行高销量经销商的日常运营。 
+Action:
+识别关键企业利益相关者，并制定量身定制的车队方案，强调长期服务价值而非单纯的购买价格。 
+Result:
+成功将 B2B 销售整合到分店的核心业务中，为年同比增长奠定了稳固基础。 
+
+EXPERIENCE BLOCK END
+
+
+
+EXPERIENCE BLOCK START
+Experience_name: 高端售后忠诚度计划 
+Company: ABC 汽车贸易有限公司 
+Role: 销售负责人
+Time period: 2020.01 - 至今 
+Tags: 客户留存、售后、品牌忠诚度
+Tech Stack: 客户生命周期管理
+
+Situation:
+维持高端品牌形象需要从销售点到长期拥车阶段的无缝衔接。 
+Task:
+监督将售后忠诚度计划整合到主要销售工作流程中。 
+Action:
+与服务部门协调，确保所有高净值客户在购买后都能获得个性化的跟进和品牌活动的专属参与权。 
+Result:
+提升了整体客户满意度，并增加了现有豪华车主的推荐销售比例。 
+
+EXPERIENCE BLOCK END

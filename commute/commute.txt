@@ -1,0 +1,111 @@
+in this project, there is a funtion that can generate resume by the template that user uploaded, currently, the template is .md file and the resume output is .docx file, user says that generate from .md file to .docx file is not a good idea, have 2 unconvenients:
+1. a lot of symbols in markdown file will be added in the docx file, need lots of work to delete
+2. the format in the docx file is not as expected, need lots of work to adjust, its time consuming.
+
+now i want to do the change:
+1. change template file format from .md to .docx, only allow user to upload .docx file as template
+2. change the generation process of resume docx file, "To open the template docx file and replace the contents with generated content so can keep the format in docx"  not generate a new docx file.
+3. there are replace parts in template docx file with is using {key} format, for example  {skills}, {projects} and so on.
+4. user can decide what to generate in the resume by define contents in the template docx file, for example, if user don't want to generate projects, then don't add {projects} in the template docx file.
+5. user can add explains in the {key: "explain"} format, for example {Content of Cover letter:  4 paragraphs, 1 page}, {projects: "projects"} and so on, the explain will be used to generate the content of the key.
+6. the content that user dont want to generate, just write as normal content in the template docx file, for example, use can write his "Name","Telephone","Email","Address" in the template that don't has to be changed.
+7.the name of the output file should also be changed.
+
+
+
+OTHER PARTS OF THIS APP SHOULD NOT BE CHANGED!
+the content generate logic is good, don't change it!
+
+here are the files as example:
+for english version:
+1. cover letter template docx file: /testdata/Cover LetterT - {Company name} - {Position name} - {Name of applicant} - {Generate date}.docx
+2. cover letter desired docx file: /testdata/Cover Letter - AUT auto - Sales Consultant Seminar Sales Specialist - WangCuixia - 20260226.docx
+3. resume template docx file: /testdata/ResumeT - {Company name} - {Position name} - Wang Cuixia - {Generate date}.docx
+4. resume desired docx file: /testdata/Resume - AUT auto - Sales Consultant Seminar Sales Specialist - WangCuixia - 20260226.docx
+
+for chinese version:
+1. cover letter template docx file: /testdata/Cover LetterT - AUT auto - 销售顾问，直播销售专员 - 王翠霞 - 20260226.docx
+2. cover letter desired docx file: /testdata/Cover Letter - AUT auto - 销售顾问，直播销售专员 - 王翠霞 - 20260226.docx
+3. resume template docx file: /testdata/ResumeT - {公司名称} - {职位名称} - 王翠霞 - {Generate date}.docx
+4. resume desired docx file: /testdata/Resume -  AUT auto - 销售顾问，直播销售专员 - 王翠霞 - 20260226.docx
+
+considering above needs, make a detailed plan for me, is there is a conflict or better suggestion, please let me know.
+
+make a plan before taking action!
+make a plan before taking action!
+make a plan before taking action!
+
+
+
+
+
+
+
+for module 1 "Dashboard" that display the list of jobs that can analyze the job and generate resume, i wanna make following changes:
+1. now the jobs in the list comes from the explorer extension that scratch the page from the websites to analyze, now i found that, some job sites don't offer the plain html for downloading, that make the job can not be stratched, i wanna add a button of "Read Images" to create job from job Description images.
+2. there will be a new ingestion approach for job,   (1) user paste or upload images to a compoent -> (2) use visual llm to extract the text and information about the job -> (3) get description of the job and add to current pipeline -> jobdetails -> Company analysis...
+3. the button should be the position above the jos list(near current job filter) in the left of Dashboard module
+4. use click "Read Images", there will be a component pop up for user to paste or upload images, 
+5. use "gemini-3-flash-preview" for images recognition, contents from all images should be orgnized and trigger the job details analysis and add to the job list.
+
+considering above needs, make a detailed plan for me, is there is a conflict or better suggestion, please let me know.
+
+make a plan before taking action!
+make a plan before taking action!
+make a plan before taking action!
+
+
+
+currently, when download resume and coverletter in "Resume Management",  they just named as "Template 1.docx", i want to change it to the information about the job, like "Resume - AUT auto - 销售顾问，直播销售专员 - 王翠霞 - 20260226.docx"
+
+
+currently, after image injection for create a new job, it will trigger company analysis automatically, i wanna stop the auto trigger, leave company analysis manully trigger
+
+
+Currently, for all the functions are done, we are considering to make it published to user to use, so i want to make follwing changes:
+1. add a new module named "Introduction" that used to introduce the app to user, it will be the first module that user sees when open the app and in the first postion in the top navigator.
+2. in introduction pages, there should two parts, the first parts: Preparation, the second part: Job hunting.
+2.1 Preparation:
+   Preparation have 2 steps:
+   2.1.1 Get templates ready, use should prepare resume and cover letter templates in docx format, teach them how to do this and give examples to download for following, examples for english and chinese version resume and coverletter are here, make them dowloadable for users, i will keep testdata folder in the backend folder
+for english version:
+1. cover letter template docx file: /testdata/Cover LetterT - {Company name} - {Position name} - {Name of applicant} - {Generate date}.docx
+2. resume template docx file: /testdata/ResumeT - {Company name} - {Position name} - Wang Cuixia - {Generate date}.docx
+
+for chinese version:
+1. cover letter template docx file: /testdata/Cover LetterT - AUT auto - 销售顾问，直播销售专员 - 王翠霞 - 20260226.docx
+2. resume template docx file: /testdata/ResumeT - {公司名称} - {职位名称} - 王翠霞 - {Generate date}.docx
+    2.1.2 Get experience ready, use should prepare expience ready in txt or md formats, teach them how to do his and give example to download for following, examples for examples for english and chinese version resume and coverletter are here, make them dowloadable for users, i will keep testdata folder in the backend folder
+    for english version:
+    1. experience template file: /testdata/Experience Wang Cuixia.txt
+    for chinese version:
+    1. experience template file: /testdata/经验模块 王翠霞.txt
+
+2.2 job hunting
+    job hunting have 4 steps:
+    2.2.1 ingestion job
+    teach user how to ingest job from extentions or from image, make /testdata/extension.zip downloadable for use to use.
+    2.2.2 company analysis
+    teach user how to analyze the Company
+    2.2.3 match analysis
+    teach user how to analyze job match
+    2.2.4 generate resume and coverletter
+    teach user how to generate resume and coverletter.
+
+all the introduction 
+
+3. check and make this app bilingual for recently added module and functions, still keep that, genereate content based on current use selected language, now we only support english and chinese.
+
+
+1. change current module name from "nav.introduction" to "Introduction" / "使用介绍" and "nav.personal" to "Template" / "模板管理"
+2. currently the download of sample files and extensions links are not right,these file are in /root/testdata folder, if necessary, you can make them to the "download" folder in backend folder by create a folder in backend.
+3. still errors in frontend:
+
+
+
+it's not downloading, it's trying to open the files in the browser in Introduction page, it's not right, user should download to see an to use, not open the file in browser
+
+
+i wanna deploy this app to a ubuntu server very soon, please do the following works:
+1. scan the code files, delete unneeded or temp files.
+2. create dockerfiles for both ends and docker-compose.yml file for me based on the ports definition in .env file

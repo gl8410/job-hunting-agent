@@ -5,16 +5,16 @@ import { supabase } from './supabase';
 const API_BASE = "/api";
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No active session");
-    
-    const headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-        'Accept-Language': i18n.language
-    };
-    return fetch(url, { ...options, headers: headers as any });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("No active session");
+
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json',
+    'Accept-Language': i18n.language
+  };
+  return fetch(url, { ...options, headers: headers as any });
 }
 
 export const analyzeJobDescription = async (description: string): Promise<AnalysisResult> => {
@@ -42,7 +42,7 @@ export const researchCompany = async (jobId: number): Promise<JobOpportunity> =>
   return response.json();
 };
 
-export const matchExperienceBlocks = async (job: JobOpportunity, blocks: ExperienceBlock[]): Promise<{matches: MatchResult[], level: 'Low'|'Medium'|'Good', reasoning: string, advantages: string[], weaknesses: string[]}> => {
+export const matchExperienceBlocks = async (job: JobOpportunity, blocks: ExperienceBlock[]): Promise<{ matches: MatchResult[], level: 'Low' | 'Medium' | 'Good', reasoning: string, advantages: string[], weaknesses: string[] }> => {
   const response = await fetchWithAuth(`${API_BASE}/match`, {
     method: 'POST',
     body: JSON.stringify({ job, blocks, language: i18n.language })
@@ -59,7 +59,7 @@ export const matchExperienceBlocks = async (job: JobOpportunity, blocks: Experie
 };
 
 export const generateApplicationMaterials = async (
-  job: JobOpportunity, 
+  job: JobOpportunity,
   blocks: ExperienceBlock[],
   customInstructions: string,
   templateStyle: string = "modern",
@@ -81,7 +81,7 @@ export const extractExperienceFromText = async (resumeText: string): Promise<Exp
   });
   if (!response.ok) throw new Error("Backend extraction failed");
   const data = await response.json();
-  
+
   // Use a fallback for crypto.randomUUID which is only available in Secure Contexts (HTTPS)
   const generateId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -96,7 +96,7 @@ export const extractExperienceFromText = async (resumeText: string): Promise<Exp
 export const generateResumeForJob = async (jobId: string | number, templateId?: string): Promise<JobOpportunity> => {
   const url = new URL(`${API_BASE}/jobs/${jobId}/generate-resume`, window.location.origin);
   if (templateId) url.searchParams.append('template_id', templateId);
-  
+
   const response = await fetchWithAuth(url.toString(), {
     method: 'POST'
   });
@@ -104,8 +104,10 @@ export const generateResumeForJob = async (jobId: string | number, templateId?: 
   return response.json();
 };
 
-export const generateCoverLetterForJob = async (jobId: string | number): Promise<JobOpportunity> => {
-  const response = await fetchWithAuth(`${API_BASE}/jobs/${jobId}/generate-cover-letter`, {
+export const generateCoverLetterForJob = async (jobId: string | number, templateId?: string): Promise<JobOpportunity> => {
+  const url = new URL(`${API_BASE}/jobs/${jobId}/generate-cover-letter`, window.location.origin);
+  if (templateId) url.searchParams.append('template_id', templateId);
+  const response = await fetchWithAuth(url.toString(), {
     method: 'POST'
   });
   if (!response.ok) throw new Error("Cover letter generation failed");

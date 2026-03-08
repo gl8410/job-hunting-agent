@@ -9,6 +9,7 @@ class ResumeTemplate(SQLModel, table=True):
     description: str
     style: str  # modern, classic, creative
     template_content: Optional[str] = None  # Template structure/format
+    cover_letter_content: Optional[str] = None # Cover letter template format
     
     # User ownership
     user_email: str = Field(default="kd_0047@163.com", index=True)

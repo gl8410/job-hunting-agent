@@ -81,7 +81,7 @@ async def get_current_user(
         # Configure httpx client with proper timeout and SSL settings
         # Use verify=True but with increased timeout to handle SSL handshake issues
         client_config = {
-            "timeout": httpx.Timeout(30.0, connect=10.0),
+            "timeout": httpx.Timeout(15.0, connect=5.0),
             "verify": True,  # Keep SSL verification enabled for security
             "follow_redirects": True,
         }
@@ -95,7 +95,7 @@ async def get_current_user(
                 with httpx.Client(**client_config) as client:
                     resp = client.get(url, headers=headers, params=params)
                 break  # Success, exit retry loop
-            except (httpx.ConnectError, ssl.SSLError) as e:
+            except (httpx.RequestError, ssl.SSLError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
                     # Wait briefly before retry
@@ -123,7 +123,7 @@ async def get_current_user(
                     with httpx.Client(**client_config) as client:
                         resp_ins = client.post(url, headers=headers, json=new_profile)
                     break
-                except (httpx.ConnectError, ssl.SSLError) as e:
+                except (httpx.RequestError, ssl.SSLError) as e:
                     if attempt < max_retries - 1:
                         import time
                         time.sleep(0.5 * (attempt + 1))

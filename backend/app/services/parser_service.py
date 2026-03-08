@@ -4,7 +4,7 @@ Extracts structured data from job descriptions
 """
 import re
 from typing import Dict, Any, Optional, List
-from app.integrations.llm import call_llm_json
+from app.integrations.llm import call_llm_json, call_vision_llm_json
 from app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -138,3 +138,66 @@ async def extract_job_metadata(url: str, html_content: str) -> Dict[str, Any]:
         "description_raw": html_content
     }
 
+async def parse_job_from_images(images_base64: List[str], language: str = "en") -> Dict[str, Any]:
+    """
+    Parse a job description from images instead of text.
+    Uses Vision LLM to read the images, extract markdown, and parse structured fields simultaneously.
+    """
+    from datetime import datetime
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
+    lang_instruction = "IMPORTANT: You MUST provide the 'brief_description' and 'description_markdown' in Chinese (简体中文)." if language == "zh" else "IMPORTANT: You MUST provide the 'brief_description' and 'description_markdown' in English."
+
+    system_prompt = f"""You are a smart vision-based job description parser.
+Read the job posting from the provided images and extract structured information.
+Today's date is {current_date}.
+
+{lang_instruction}
+
+Return a JSON object with the following fields:
+- description_markdown: The full extracted text of the job description, formatted cleanly in Markdown (with headers, bullet points).
+- title: The job title 
+- company: The company name (or recruitment agency name if specified)
+- recruiter_is_agency: Boolean, true if the job is posted by a recruitment agency for an unnamed client.
+- hiring_client_description: If recruiter_is_agency is true, extract the description of the actual client. If not an agency, use null.
+- department: The specific department or team (if mentioned)
+- location: The job location
+- salary_range: The salary range or compensation details
+- published_at: Exact date in YYYY-MM-DD format. If relative time like '3 days ago', calculate based on {current_date}.
+- brief_description: A concise summary (max 300 words). Include: 1. What is this role for? 2. What key skills are needed?
+- key_skills: List of required technical skills and technologies
+- requirements: List of job requirements
+- responsibilities: List of job responsibilities
+
+If a field is not found, use null or empty list."""
+
+    user_prompt = "Parse this job description from the attached images and extract the structured information. Return only valid JSON."
+
+    try:
+        logger.info(f"Vision Parser: Sending {len(images_base64)} images to LLM")
+        # Use longer timeout for vision models as they can be slower
+        result = await call_vision_llm_json(images_base64, user_prompt, system_prompt, timeout=300.0)
+        
+        # Ensure key_skills is a list
+        if not result.get("key_skills"):
+            result["key_skills"] = []
+            
+        logger.info(f"Vision Parser: Successfully parsed job: {result.get('title')} at {result.get('company')}")
+        return result
+    except Exception as e:
+        logger.error(f"Error parsing job description from images: {e}", exc_info=True)
+        return {
+            "description_markdown": None,
+            "title": None,
+            "company": None,
+            "recruiter_is_agency": False,
+            "hiring_client_description": None,
+            "department": None,
+            "location": None,
+            "salary_range": None,
+            "published_at": None,
+            "brief_description": None,
+            "key_skills": [],
+            "requirements": [],
+            "responsibilities": []
+        }

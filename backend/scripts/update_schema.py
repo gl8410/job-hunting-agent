@@ -31,7 +31,8 @@ def update_schema():
         ("resume_templates", "user_email", "VARCHAR", "'kd_0047@163.com'"),
         ("experience_blocks", "role", "VARCHAR", None),
         ("job_opportunities", "resume_generated_at", "TIMESTAMP", None),
-        ("job_opportunities", "cover_letter_generated_at", "TIMESTAMP", None)
+        ("job_opportunities", "cover_letter_generated_at", "TIMESTAMP", None),
+        ("resume_templates", "cover_letter_content", "VARCHAR", None)
     ]
     
     with engine.connect() as conn:

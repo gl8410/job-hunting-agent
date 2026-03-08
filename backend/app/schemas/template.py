@@ -6,6 +6,7 @@ class TemplateCreate(BaseModel):
     description: str
     style: str  # modern, classic, creative
     template_content: Optional[str] = None
+    cover_letter_content: Optional[str] = None
 
 class TemplateResponse(BaseModel):
     id: int
@@ -13,6 +14,7 @@ class TemplateResponse(BaseModel):
     description: str
     style: str
     template_content: Optional[str] = None
+    cover_letter_content: Optional[str] = None
 
     class Config:
         from_attributes = True

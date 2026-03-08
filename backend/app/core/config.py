@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # CORS Configuration
-    BACKEND_CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3004", "http://localhost:8080", "http://localhost:8875", "http://localhost:5173"]
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = ["http://localhost:7803", "http://localhost:8080", "http://localhost:8875", "http://localhost:5173"]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     Tavily_API_KEY: str
 
     # Server Configuration
-    BACKEND_PORT: int = 8004
-    FRONTEND_PORT: int = 3004
+    BACKEND_PORT: int = 6803
+    FRONTEND_PORT: int = 7803
 
     class Config:
         env_file = ".env"
