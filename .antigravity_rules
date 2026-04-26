@@ -18,17 +18,19 @@
   - Testing: pytest, pytest-asyncio.
   - Runtime Model (CRITICAL):
 
-## Frontend (Next.js)
-- Framework: Next.js 14+ (App Router).
+## Frontend (React/Vite)
+- Framework: React 19 (SPA) + Vite.
 - Language: TypeScript (Strict Mode).
 - UI Library: ShadcnUI + Tailwind CSS (Lucide Icons).
-- AI Integration: Vercel AI SDK (ai/react, useChat, useCompletion).
+- State Architecture: Context-based global state (e.g., AuthContext).
 - Communication: Use Server-Sent Events (SSE) for all AI responses.
 
 ## Database & Storage
-- Relational/Vector: PostgreSQL (Supabase) + pgvector.
-- ORM: SQLAlchemy (AsyncIO) or Supabase Python Client.
-- Graph DB: Neo4j (Use neo4j-driver or LangChain Graph implementations).
+- Relational: PostgreSQL 15 (Supabase).
+- Vector DB: Qdrant (v1.16.3).
+- Object/File Storage: MinIO (RELEASE.2025-07-23T15-54-02Z).
+- Graph DB: Neo4j (5.26 LTS) - Use neo4j-driver or LangChain Graph implementations.
+- ORM: SQLModel (SQLAlchemy + Pydantic) for validation and database tables.
 
 # Workflow Rules (CRITICAL)
 ## 1. Planning & Context
@@ -61,7 +63,7 @@
 - Safety: Do not delete whole files or directories unless explicitly instructed.
 
 # Project Structure (Standard)
-- `/frontend`: Next.js application.
+- `/frontend`: React/Vite SPA application.
 - `/backend`: FastAPI application.
 - `/app/api`: REST Endpoints.
 - `/app/core`: Config & LLM Factory.
@@ -69,3 +71,34 @@
 # Communication
 - **Format**: Be concise. Use bullet points for plans. Respond in English.
 - **Dependency**: If you need to install a new library (`pip install`), list it first and ask for permission (unless it's a standard library).
+
+@rules:
+for testing backend functions, always writing test files in the /backend/tests folder
+
+## Frontend Multilingual (i18n)
+- For every frontend system, always setup bilingual support (English/Chinese) at the onset.
+- Use `react-i18next` and `i18next-browser-languagedetector` for standard configuration.
+
+## Backend Async I/O Safety (CRITICAL for FastAPI)
+- No Blocking Calls: Strictly prohibit the use of synchronous blocking I/O libraries (like `requests` or `time.sleep`) inside `async def` endpoints. Mandate the use of `httpx`, `asyncio.sleep`, and async database drivers. *Exception*: Background ThreadPool workers may use `requests` (e.g., to bypass system proxies for Qdrant API via `trust_env=False`).
+
+## API Design & Error Handling Standards
+- Standardized API Responses: Enforce a consistent standard format for successful responses and errors (e.g., always returning `{ "data": ... , "error": null }` or `{ "data": null, "error": { "code": ..., "message": ... } }`).
+- Global Exception Handlers: Mandate the use of FastAPI's global exception handlers rather than scattering `try/except` blocks across all endpoint logic.
+- Status Codes: Explicitly require the correct use of HTTP status codes (e.g., 400 for validation errors, 401/403 for auth, 404 for not found).
+
+## Frontend Architecture & TypeScript
+- Strict Typing Rules: Ban the use of the `any` type without explicit, documented justification. Require `unknown` or proper interfaces/generics.
+- Separation of Concerns (Custom Hooks): Require that complex business logic, state management, and side effects (like fetch calls) be extracted into custom React hooks rather than polluting UI components.
+- State Management Standard: Use tools like Zustand or React Context for global state/theme/auth (avoid legacy Redux unless strictly specified).
+
+## Logging & Observability
+- Structured Logging: Mandate using the standard `logging` library (or a tool like `Loguru`) instead of `print()` statements for production readiness.
+- Error Tracing: Require logging of stack traces for 500 errors and capturing contextual data (like user IDs or request IDs).
+
+## Security Best Practices
+- Environment Variable Strictness: Frontend environment variables must start with `NEXT_PUBLIC_` only if they are entirely safe to expose. No backend keys should ever slip into public variables.
+- Input Validation: Reiterate that all incoming payload data must be strictly validated by Pydantic V2 before being passed to service layers or database queries (to prevent injection risks).
+
+## Containerization (Docker)
+- Docker Standards: Add run rules for containerization, using multi-stage builds, `.dockerignore` maintenance to keep layer sizes small, and running container processes as non-root users.

@@ -1,19 +1,53 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Trash2, FileText, FileCheck, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { JobOpportunity } from '../types';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Download, Trash2, FileText, FileCheck, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import { JobOpportunity, ResumeTemplate } from '../types';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { useAuth } from '../contexts/AuthContext';
+import loadingSvg from '../logo/loading.svg';
+
+const API_BASE = '/api';
 
 interface ResumeManagementProps {
-  jobs: JobOpportunity[];
-  onUpdateJob: (job: JobOpportunity) => void;
+  templates?: ResumeTemplate[];
 }
 
 type SortKey = 'published_at' | 'resume_generated_at';
 type SortDirection = 'asc' | 'desc';
 
-export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpdateJob }) => {
-  const { t } = useTranslation();
+export const ResumeManagement: React.FC<ResumeManagementProps> = ({ templates = [] }) => {
+  const { t, i18n } = useTranslation();
+  const { session } = useAuth();
+
+  // Own data state — fetched directly from /api/jobs/resumes
+  const [resumeJobs, setResumeJobs] = useState<JobOpportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchResumeJobs = useCallback(async () => {
+    if (!session) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/jobs/resumes`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'X-Language': i18n.language,
+        }
+      });
+      if (!res.ok) throw new Error(`Failed to load resumes (${res.status})`);
+      const data: JobOpportunity[] = await res.json();
+      setResumeJobs(data);
+    } catch (e: any) {
+      setError(e.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [session, i18n.language]);
+
+  useEffect(() => { fetchResumeJobs(); }, [fetchResumeJobs]);
+
   // Sort State
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>({
     key: 'resume_generated_at',
@@ -23,57 +57,55 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
   // Column Width State
   const [columnWidths, setColumnWidths] = useState({
     index: 60,
-    title: 220,
-    company: 180,
-    published: 160,
-    generated: 160,
-    language: 100,
-    actions: 300
+    title: 200,
+    company: 160,
+    template: 160,
+    published: 140,
+    generated: 140,
+    language: 90,
+    actions: 280
   });
 
-  // Filter jobs that have generated resumes or cover letters
+  // Apply sort to the fetched data
   const processedJobs = useMemo(() => {
-    let result = jobs.filter(job => job.generated_resume || job.generated_cover_letter);
-
-    if (sortConfig) {
-      result = [...result].sort((a, b) => {
-        const getDate = (job: JobOpportunity, key: SortKey) => {
-          const val = job[key];
-          return val ? new Date(val).getTime() : 0;
-        };
-
-        const dateA = getDate(a, sortConfig.key);
-        const dateB = getDate(b, sortConfig.key);
-
-        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
-      });
-    }
-
-    return result;
-  }, [jobs, sortConfig]);
+    if (!sortConfig) return resumeJobs;
+    return [...resumeJobs].sort((a, b) => {
+      const getDate = (job: JobOpportunity, key: SortKey) => {
+        const val = job[key];
+        return val ? new Date(val as string).getTime() : 0;
+      };
+      const dateA = getDate(a, sortConfig.key);
+      const dateB = getDate(b, sortConfig.key);
+      return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  }, [resumeJobs, sortConfig]);
 
   const handleDeleteResume = async (job: JobOpportunity) => {
     if (!confirm(t('resumes.delete_confirm'))) return;
+    if (!session) return;
 
-    // Send update to clear resume and cover letter
-    // Note: We're sending nulls/empty strings to clear them
-    // Ideally backend should handle specific deletion logic, but setting them to null via update works if backend supports it.
-    // Given the Pydantic model might ignore missing fields, we try setting to empty string or rely on a specific logic if this fails.
-    // For now, let's try setting them to undefined or null on the object we send back, assuming backend handles "set field to null".
-    // If backend ignores unset fields, we might need to modify backend to accept explicit None.
-    // Based on standard FastAPI/Pydantic `exclude_unset=True`, we need to make sure we SEND the keys with null values.
-
-    // However, existing simple generic update in App.tsx just sends the object.
-    // Let's create a copy with reset fields.
-    const updatedJob: any = {
-      ...job,
-      generated_resume: null,
-      resume_generated_at: null,
-      generated_cover_letter: null,
-      cover_letter_generated_at: null
-    };
-
-    onUpdateJob(updatedJob);
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'X-Language': i18n.language,
+        },
+        body: JSON.stringify({
+          generated_resume: null,
+          resume_generated_at: null,
+          generated_cover_letter: null,
+          cover_letter_generated_at: null,
+        })
+      });
+      if (res.ok) {
+        // Remove from local list
+        setResumeJobs(prev => prev.filter(j => j.id !== job.id));
+      }
+    } catch (e) {
+      console.error('Failed to delete resume:', e);
+    }
   };
 
   const convertMarkdownToDocx = async (markdown: string): Promise<Blob> => {
@@ -305,6 +337,28 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
     };
   }, [onMouseMove, onMouseUp]);
 
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-slate-400">
+        <img src={loadingSvg} alt="loading" className="w-12 h-12 inline-block mb-4" />
+        <p className="text-sm font-medium">Loading resumes...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-slate-400">
+        <FileText size={64} className="mb-4 opacity-20" />
+        <p className="text-lg text-red-500">Failed to load resumes</p>
+        <p className="text-sm mb-4">{error}</p>
+        <button onClick={fetchResumeJobs} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100">
+          <RefreshCw size={16} /> Retry
+        </button>
+      </div>
+    );
+  }
+
   if (processedJobs.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -327,10 +381,17 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
       <div className="w-full">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <FileCheck className="text-blue-600" /> {t('resumes.title')}
+          <button
+            onClick={fetchResumeJobs}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={15} /> Refresh
+          </button>
         </h2>
 
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed" style={{ minWidth: '1000px' }}>
+          <table className="w-full text-left border-collapse table-fixed" style={{ minWidth: '1100px' }}>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
                 <th
@@ -353,6 +414,13 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
                 >
                   {t('resumes.col_company')}
                   <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'company')} onClick={e => e.stopPropagation()} />
+                </th>
+                <th
+                  className="relative px-4 py-4 font-semibold group"
+                  style={{ width: columnWidths.template }}
+                >
+                  Template
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-slate-300" onMouseDown={(e) => startResize(e, 'template')} onClick={e => e.stopPropagation()} />
                 </th>
                 <th
                   className="relative px-4 py-4 font-semibold cursor-pointer hover:bg-slate-100 group select-none"
@@ -398,6 +466,18 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ jobs, onUpda
                   <td className="px-4 py-4 text-slate-400 truncate">{index + 1}</td>
                   <td className="px-4 py-4 font-medium text-slate-800 truncate" title={job.title}>{job.title}</td>
                   <td className="px-4 py-4 text-slate-600 truncate" title={job.company}>{job.company}</td>
+                  <td className="px-4 py-4 text-slate-600 truncate">
+                    {(() => {
+                      const tpl = templates.find(t => String(t.id) === String(job.selected_template_id));
+                      return tpl ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-xs font-medium border border-blue-100" title={tpl.name}>
+                          {tpl.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">—</span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-4 text-slate-500 text-sm truncate">
                     {job.published_at || 'N/A'}
                   </td>

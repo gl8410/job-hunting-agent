@@ -177,3 +177,5 @@ backend/.venv/
 /communicate
 backend/tests/
 frontend/node_modules
+.agents/
+.antigravity_rules

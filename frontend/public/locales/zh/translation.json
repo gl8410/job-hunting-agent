@@ -113,5 +113,20 @@
     "hunt_step3_desc": "全面评估你的经验与岗位需求的契合度，找出优势与不足。",
     "hunt_step4_title": "4. 一键生成专属材料",
     "hunt_step4_desc": "只需点击一下，完美定制的简历和求职信瞬间生成。祝你面试顺利！"
+  },
+  "image_upload": {
+    "title": "从图片录入职位",
+    "job_link": "职位链接",
+    "optional": "(可选 — 无法从图片中提取)",
+    "drag_drop": "将图片拖拽至此",
+    "paste_clipboard": "或从剪贴板粘贴 (Ctrl+V / Cmd+V)",
+    "browse": "浏览文件",
+    "cancel": "取消",
+    "analyzing": "分析中...",
+    "analyze_btn": "分析图片",
+    "err_only_images": "请仅上传图片文件。",
+    "err_size": "图片大小不能超过 5MB。",
+    "err_read": "读取图片文件失败。",
+    "err_empty": "请至少提供一张图片。"
   }
 }

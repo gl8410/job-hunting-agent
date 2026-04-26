@@ -75,9 +75,25 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(user.router, prefix="/api", tags=["users"])
 
 import os
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+
 download_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "download")
 os.makedirs(download_dir, exist_ok=True)
-app.mount("/api/download", StaticFiles(directory=download_dir), name="download")
+# Keep static files just in case, but rely on explicit endpoint for downloading
+app.mount("/static/download", StaticFiles(directory=download_dir), name="static_download")
+
+@app.get("/api/download/{filename:path}")
+async def download_file(filename: str):
+    file_path = os.path.join(download_dir, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(
+        path=file_path,
+        filename=os.path.basename(filename),
+        headers={"Content-Disposition": f"attachment; filename={os.path.basename(filename)}"}
+    )
+
 
 @app.get("/")
 def root():

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, X, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, AlertCircle, Link } from 'lucide-react';
 import { JobOpportunity } from '../types';
+import loadingSvg from '../logo/loading.svg';
 
 interface ImageUploadModalProps {
     isOpen: boolean;
@@ -14,19 +15,20 @@ interface ImageUploadModalProps {
 export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session }: ImageUploadModalProps) {
     const { t, i18n } = useTranslation();
     const [images, setImages] = useState<string[]>([]);
+    const [jobUrl, setJobUrl] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const processFile = (file: File) => {
         if (!file.type.startsWith('image/')) {
-            setError('Please upload only image files.');
+            setError(t('image_upload.err_only_images'));
             return;
         }
 
         // Check file size (limit to ~5MB per image to be safe for base64 payload)
         if (file.size > 5 * 1024 * 1024) {
-            setError('Image must be less than 5MB.');
+            setError(t('image_upload.err_size'));
             return;
         }
 
@@ -40,7 +42,7 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                 setError(null);
             }
         };
-        reader.onerror = () => setError('Failed to read image file.');
+        reader.onerror = () => setError(t('image_upload.err_read'));
         reader.readAsDataURL(file);
     };
 
@@ -71,7 +73,7 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
 
     const handleSubmit = async () => {
         if (images.length === 0) {
-            setError('Please provide at least one image.');
+            setError(t('image_upload.err_empty'));
             return;
         }
 
@@ -88,7 +90,8 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                 },
                 body: JSON.stringify({
                     images: images,
-                    language: i18n.language
+                    language: i18n.language,
+                    url: jobUrl.trim() || null,
                 })
             });
 
@@ -98,7 +101,8 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
 
             const newJob = await response.json();
             onSuccess(newJob);
-            setImages([]); // clear state
+            setImages([]);
+            setJobUrl('');
             onClose();
         } catch (err: any) {
             setError(err.message || 'Failed to process images.');
@@ -116,7 +120,7 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                 <div className="flex justify-between items-center p-4 border-b border-slate-100">
                     <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                         <ImageIcon className="text-blue-600" size={20} />
-                        Read Job from Images
+                        {t('image_upload.title')}
                     </h2>
                     <button onClick={onClose} disabled={isLoading} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
                         <X size={20} />
@@ -132,6 +136,22 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                         </div>
                     )}
 
+                    {/* Job URL Input */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                            <Link size={14} className="text-slate-400" />
+                            {t('image_upload.job_link')} <span className="text-slate-400 font-normal">{t('image_upload.optional')}</span>
+                        </label>
+                        <input
+                            type="url"
+                            value={jobUrl}
+                            onChange={e => setJobUrl(e.target.value)}
+                            placeholder="https://example.com/jobs/12345"
+                            disabled={isLoading}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
+                        />
+                    </div>
+
                     <div
                         className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors
               ${images.length === 0 ? 'border-slate-300 hover:border-blue-400 bg-slate-50' : 'border-slate-200 bg-slate-100/50'}`}
@@ -139,13 +159,13 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                         onDrop={handleDrop}
                     >
                         <Upload size={32} className="mx-auto text-slate-400 mb-3" />
-                        <p className="text-slate-600 font-medium mb-1">Drag and drop images here</p>
-                        <p className="text-slate-400 text-sm mb-4">or paste from clipboard (Ctrl+V / Cmd+V)</p>
+                        <p className="text-slate-600 font-medium mb-1">{t('image_upload.drag_drop')}</p>
+                        <p className="text-slate-400 text-sm mb-4">{t('image_upload.paste_clipboard')}</p>
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors"
                         >
-                            Browse Files
+                            {t('image_upload.browse')}
                         </button>
                         <input
                             type="file"
@@ -181,7 +201,7 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                         disabled={isLoading}
                         className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
                     >
-                        Cancel
+                        {t('image_upload.cancel')}
                     </button>
                     <button
                         onClick={handleSubmit}
@@ -191,11 +211,11 @@ export function ImageUploadModal({ isOpen, onClose, onSuccess, apiBase, session 
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Analyzing...
+                                <img src={loadingSvg} alt="loading" className="w-4 h-4 inline-block" />
+                                {t('image_upload.analyzing')}
                             </>
                         ) : (
-                            'Analyze Images'
+                            t('image_upload.analyze_btn')
                         )}
                     </button>
                 </div>

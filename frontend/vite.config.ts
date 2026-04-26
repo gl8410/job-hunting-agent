@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: `http://localhost:${env.BACKEND_PORT || 8004}`,
+            target: `http://127.0.0.1:${env.BACKEND_PORT || 8004}`,
             changeOrigin: true,
           }
         }

@@ -15,22 +15,75 @@ from app.services.parser_service import parse_job_description, extract_job_metad
 from app.services.research_service import research_company
 from app.services.writer_service import generate_resume, generate_cover_letter
 from app.core.logging_config import get_logger
+from app.core.supabase import get_supabase_client
 
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.get("/jobs", response_model=List[JobResponse])
+from app.schemas.job import PaginatedJobResponse
+from sqlalchemy import func
+
+@router.get("/jobs", response_model=PaginatedJobResponse)
 async def list_jobs(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 20,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List all jobs"""
+    """List jobs with pagination, filtering, and counts"""
     current_user_email = current_user.email
-    statement = select(JobOpportunity).where(JobOpportunity.user_email == current_user_email).offset(skip).limit(limit)
+    
+    # Base query for user's jobs
+    base_query = select(JobOpportunity.id, JobOpportunity.title, JobOpportunity.company, JobOpportunity.status, JobOpportunity.created_at, JobOpportunity.updated_at, JobOpportunity.platform, JobOpportunity.user_email).where(JobOpportunity.user_email == current_user_email)
+    
+    # Calculate counts for all statuses (ignoring current filters)
+    counts_query = select(JobOpportunity.status, func.count(JobOpportunity.id)).where(JobOpportunity.user_email == current_user_email).group_by(JobOpportunity.status)
+    status_counts = dict(db.exec(counts_query).all())
+    total_count = sum(status_counts.values())
+    
+    counts = {"ALL": total_count}
+    counts.update(status_counts)
+
+    # Apply filters
+    if status and status != "ALL":
+        base_query = base_query.where(JobOpportunity.status == status)
+        
+    if search:
+        search_term = f"%{search}%"
+        base_query = base_query.where(
+            (JobOpportunity.title.ilike(search_term)) |
+            (JobOpportunity.company.ilike(search_term))
+        )
+
+    # Get total count for current filter
+    total_filtered = db.exec(select(func.count()).select_from(base_query.subquery())).one()
+
+    # Get paginated items
+    statement = base_query.order_by(JobOpportunity.created_at.desc()).offset(skip).limit(limit)
     jobs = db.exec(statement).all()
-    return jobs
+    
+    # Convert Row objects to dictionaries to match JobListItem schema
+    job_items = [
+        {
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "status": job.status,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at,
+            "platform": job.platform,
+            "user_email": job.user_email
+        }
+        for job in jobs
+    ]
+    
+    return {
+        "items": job_items,
+        "total": total_filtered,
+        "counts": counts
+    }
 
 @router.post("/jobs", response_model=JobResponse)
 async def create_job(
@@ -47,6 +100,25 @@ async def create_job(
     db.commit()
     db.refresh(db_job)
     return db_job
+
+@router.get("/jobs/resumes", response_model=List[JobResponse])
+async def list_jobs_with_resumes(
+    current_user: Profile = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return all jobs that have a generated resume or cover letter (full fields)."""
+    current_user_email = current_user.email
+    statement = (
+        select(JobOpportunity)
+        .where(JobOpportunity.user_email == current_user_email)
+        .where(
+            (JobOpportunity.generated_resume != None) |
+            (JobOpportunity.generated_cover_letter != None)
+        )
+        .order_by(JobOpportunity.resume_generated_at.desc())
+    )
+    jobs = db.exec(statement).all()
+    return jobs
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job(
@@ -80,7 +152,7 @@ async def create_job_from_images(
     parsed_data = await parse_job_from_images(job_req.images, language=job_req.language)
     
     job_data = {
-        "url": None,
+        "url": job_req.url or None,  # Use manually provided URL (images can't provide this)
         "platform": "Scanned Image",
         "title": parsed_data.get("title") or "Unknown Title",
         "company": parsed_data.get("company") or "Unknown Company",
@@ -278,6 +350,20 @@ async def generate_job_resume(
         raise HTTPException(status_code=403, detail="Not authorized to generate resume for this job")
 
     logger.info(f"Generating resume for job {job_id}")
+
+    # Deduct 20 credits
+    supabase = get_supabase_client(use_service_role=True)
+    try:
+        response = supabase.rpc('deduct_credits', {
+            'p_user_id': str(current_user.id),
+            'p_cost_amount': 20,
+            'p_app_id': 'search_agent',
+            'p_feature_name': 'generate_resume',
+            'p_metadata': {'job_id': job_id}
+        }).execute()
+    except Exception as e:
+        logger.error(f"Credit deduction failed for user {current_user.id}: {e}")
+        raise HTTPException(status_code=402, detail="Insufficient credits or credit deduction failed")
 
     # Extract language from header
     lang = "en"

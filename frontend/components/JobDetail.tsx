@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 import { JobOpportunity, ExperienceBlock, JobStatus, ResumeTemplate } from '../types';
-import { Sparkles, BrainCircuit, ExternalLink, Info, CheckCircle, AlertTriangle, Building, Banknote, Calendar, Clock, Globe, FileText, X, Search, FileSearch, ShieldCheck, Zap, TrendingUp, ShieldAlert, ChevronDown, RefreshCw, MapPin, Layers } from 'lucide-react';
+import { Sparkles, BrainCircuit, ExternalLink, Info, CheckCircle, AlertTriangle, Building, Banknote, Calendar, Clock, Globe, FileText, X, Search, FileSearch, ShieldCheck, Zap, TrendingUp, ShieldAlert, ChevronDown, RefreshCw, MapPin, Layers, Tag } from 'lucide-react';
 import { analyzeJobDescription, matchExperienceBlocks, generateApplicationMaterials, reinjectJob, researchCompany, generateResumeForJob, generateCoverLetterForJob } from '../services/geminiService';
+import loadingSvg from '../logo/loading.svg';
 
 interface JobDetailProps {
   job: JobOpportunity;
@@ -17,15 +20,24 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
   const [loading, setLoading] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
   const [showResearchModal, setShowResearchModal] = useState(false);
+  const [showResumeConfirm, setShowResumeConfirm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [loadingCredits, setLoadingCredits] = useState(false);
+  const { user } = useAuth();
 
   React.useEffect(() => {
-    if (templates.length > 0 && !selectedTemplate) {
-      // Find latest uploaded (highest ID)
-      const sorted = [...templates].sort((a, b) => Number(b.id) - Number(a.id));
-      setSelectedTemplate(sorted[0].id.toString());
+    // Priority: use job's previously used template first, then fall back to latest uploaded
+    if (templates.length > 0) {
+      if (job.selected_template_id && templates.some(t => String(t.id) === String(job.selected_template_id))) {
+        setSelectedTemplate(String(job.selected_template_id));
+      } else if (!selectedTemplate) {
+        // Find latest uploaded (highest ID)
+        const sorted = [...templates].sort((a, b) => Number(b.id) - Number(a.id));
+        setSelectedTemplate(sorted[0].id.toString());
+      }
     }
-  }, [templates, selectedTemplate]);
+  }, [templates, job.selected_template_id]);
 
   const handleResearchCompany = async () => {
     if (!job.id) return;
@@ -78,12 +90,56 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
     }
   };
 
-  const handleGenerateDoc = async (type: 'resume' | 'cover_letter') => {
+  const handleGenerateClick = async (type: 'resume' | 'cover_letter') => {
     if (!job.id) return;
+
+    // Resume and cover letter both generate documents, confirming both with same modal is logical and safe.
+    // If it's specifically about 'resume' from UI wording, we can generalise the cost to 20 for doc generation in general.
+    // Let's keep it mostly generic or explicit.
+
+    // Set operation type to determine later
+    // Let's just track the string for submission.
+    setPendingGenType(type);
+
+    setShowResumeConfirm(true);
+    setLoadingCredits(true);
+    try {
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_credits, topup_credits')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        const subCredits = data?.subscription_credits || 0;
+        const topCredits = data?.topup_credits || 0;
+        setUserCredits(subCredits + topCredits);
+      }
+    } catch (e) {
+      console.error("Failed to load credits:", e);
+      setUserCredits(0);
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  const [pendingGenType, setPendingGenType] = useState<'resume' | 'cover_letter' | null>(null);
+
+  const handleGenerateDoc = async () => {
+    if (!job.id || !pendingGenType) return;
+    if (userCredits !== null && userCredits < 20) {
+      alert("余额不足 (Insufficient credits).");
+      return;
+    }
+
     setLoading(t('common.loading'));
+    setShowResumeConfirm(false);
+
     try {
       let updatedJob: JobOpportunity;
-      if (type === 'resume') {
+      if (pendingGenType === 'resume') {
         updatedJob = await generateResumeForJob(job.id, selectedTemplate);
       } else {
         updatedJob = await generateCoverLetterForJob(job.id, selectedTemplate);
@@ -91,7 +147,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
       onUpdateJob(updatedJob);
     } catch (e: any) {
       console.error("Doc generation error:", e);
-      alert(`Generation failed: ${e.message || "Unknown error"}`);
+      alert(`Generation failed: ${e.message || "Insufficient credits or unknown error"}`);
     } finally {
       setLoading(null);
     }
@@ -114,8 +170,77 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
 
       {loading && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <img src={loadingSvg} alt="loading" className="w-12 h-12 inline-block mb-4" />
           <p className="text-blue-600 font-medium animate-pulse">{loading}</p>
+        </div>
+      )}
+
+      {/* Resume Generate Confirm Modal */}
+      {showResumeConfirm && (
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">确认审查费用</h3>
+                  <p className="text-sm text-slate-500 mt-1">本次操作将消耗您的账户积分</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-5 mb-6 space-y-4">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-slate-600">操作:</span>
+                  <span className="text-slate-900">{pendingGenType === 'resume' ? '生成简历' : '生成求职信'}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-slate-600">当前余额:</span>
+                  <span className="text-slate-900">
+                    {loadingCredits ? <img src={loadingSvg} alt="loading" className="w-4 h-4 inline-block" /> : `${userCredits} 积分`}
+                  </span>
+                </div>
+                <div className="h-px bg-slate-200"></div>
+                <div className="flex justify-between items-center text-base font-bold">
+                  <span className="text-slate-800">总计消耗:</span>
+                  <span className="text-blue-600 text-lg">20 积分</span>
+                </div>
+              </div>
+
+              {(!loadingCredits && userCredits !== null && userCredits < 20) && (
+                <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100 flex items-start gap-2">
+                  <AlertTriangle className="shrink-0 mt-0.5" size={16} />
+                  <p>积分不足！您需要至少 20 积分才能继续此操作，请前去充值。</p>
+                </div>
+              )}
+
+              <div className="text-center text-xs text-slate-400 mb-8 space-y-1">
+                <p>点击确认后将立即扣除积分并开始任务。</p>
+                <p>若任务失败，积分将自动通过系统日志审计退回。</p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowResumeConfirm(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleGenerateDoc}
+                  disabled={loadingCredits || (userCredits !== null && userCredits < 20)}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-bold transition-colors shadow-sm text-white
+                    ${loadingCredits || (userCredits !== null && userCredits < 20)
+                      ? 'bg-slate-300 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                >
+                  确认并开始
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -401,7 +526,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
           <label className="text-xs font-black text-slate-400 uppercase tracking-widest min-w-fit">{t('common.template')}</label>
           <div className="relative group flex-1 max-w-xs">
             <select
-              value={selectedTemplate}
+              value={selectedTemplate || job.selected_template_id || ''}
               onChange={(e) => setSelectedTemplate(e.target.value)}
               className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold py-2 pl-4 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all cursor-pointer shadow-sm"
             >
@@ -415,23 +540,44 @@ export const JobDetail: React.FC<JobDetailProps> = ({ job, blocks, templates, on
           </div>
         </div>
 
-        <div className="flex gap-4 min-w-fit">
-          <button
-            onClick={() => handleGenerateDoc('resume')}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-bold flex justify-center items-center gap-2"
-          >
-            <Sparkles size={18} /> {t('job_detail.generate_resume')}
-          </button>
-          <button
-            onClick={() => handleGenerateDoc('cover_letter')}
-            disabled={!job.generated_resume || !templates.find(t => String(t.id) === selectedTemplate)?.cover_letter_content}
-            className={`px-6 py-2.5 rounded-lg shadow-sm font-bold flex justify-center items-center gap-2 transition-colors
-                  ${(!job.generated_resume || !templates.find(t => String(t.id) === selectedTemplate)?.cover_letter_content)
+        <div className="flex gap-4 min-w-fit items-start">
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => handleGenerateClick('resume')}
+              className={`px-6 py-2.5 rounded-lg transition-colors shadow-sm font-bold flex justify-center items-center gap-2 text-white
+                ${job.generated_resume ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
+              {job.generated_resume ? <CheckCircle size={18} /> : <Sparkles size={18} />} {t('job_detail.generate_resume')}
+            </button>
+            {job.generated_resume && job.selected_template_id && (() => {
+              const tpl = templates.find(t => String(t.id) === String(job.selected_template_id));
+              return tpl ? (
+                <span className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 font-medium">
+                  <Tag size={10} /> {tpl.name}
+                </span>
+              ) : null;
+            })()}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => handleGenerateClick('cover_letter')}
+              disabled={!job.generated_resume || !templates.find(t => String(t.id) === (selectedTemplate || job.selected_template_id))?.cover_letter_content}
+              className={`px-6 py-2.5 rounded-lg shadow-sm font-bold flex justify-center items-center gap-2 transition-colors
+                    ${(!job.generated_resume || !templates.find(t => String(t.id) === (selectedTemplate || job.selected_template_id))?.cover_letter_content)
                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-slate-800 text-white hover:bg-slate-900'}`}
-          >
-            <FileText size={18} /> {t('job_detail.generate_cover_letter')}
-          </button>
+                : job.generated_cover_letter ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-800 text-white hover:bg-slate-900'}`}
+            >
+              {job.generated_cover_letter ? <CheckCircle size={18} /> : <FileText size={18} />} {t('job_detail.generate_cover_letter')}
+            </button>
+            {job.generated_cover_letter && job.selected_template_id && (() => {
+              const tpl = templates.find(t => String(t.id) === String(job.selected_template_id));
+              return tpl ? (
+                <span className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 font-medium">
+                  <Tag size={10} /> {tpl.name}
+                </span>
+              ) : null;
+            })()}
+          </div>
         </div>
       </div>
     </div>

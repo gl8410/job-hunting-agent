@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, Loader2 } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import loadingSvg from '../logo/loading.svg';
 
 export const PersonalProfile: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -70,7 +71,7 @@ export const PersonalProfile: React.FC = () => {
               disabled={updatingPw || !password}
               className="w-full bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-900 transition-colors mt-2 flex justify-center items-center gap-2 disabled:opacity-50"
             >
-              {updatingPw && <Loader2 className="animate-spin" size={16} />}
+              {updatingPw && <img src={loadingSvg} alt="loading" className="w-4 h-4 inline-block" />}
               Update Password
             </button>
           </div>

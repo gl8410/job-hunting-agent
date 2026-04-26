@@ -113,5 +113,20 @@
     "hunt_step3_desc": "Find out exactly how your experience aligns with the role requirements.",
     "hunt_step4_title": "4. Generate Tailored Docs",
     "hunt_step4_desc": "A click away from a perfectly tailored resume and cover letter. Go get 'em!"
+  },
+  "image_upload": {
+    "title": "Ingest Job from Images",
+    "job_link": "Job Link",
+    "optional": "(optional — cannot be extracted from images)",
+    "drag_drop": "Drag and drop images here",
+    "paste_clipboard": "or paste from clipboard (Ctrl+V / Cmd+V)",
+    "browse": "Browse Files",
+    "cancel": "Cancel",
+    "analyzing": "Analyzing...",
+    "analyze_btn": "Analyze Images",
+    "err_only_images": "Please upload only image files.",
+    "err_size": "Image must be less than 5MB.",
+    "err_read": "Failed to read image file.",
+    "err_empty": "Please provide at least one image."
   }
 }

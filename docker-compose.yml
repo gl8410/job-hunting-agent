@@ -1,0 +1,54 @@
+services:
+  jobhunt_postgres:
+    image: postgres:15-alpine
+    container_name: jobhunt_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jobhunter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobhunter_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-jbh_db}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - jobhunter-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jobhunter-backend
+    ports:
+      - "${BACKEND_PORT:-6803}:6803"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-jobhunter}:${POSTGRES_PASSWORD:-jobhunter_pass}@jobhunt_postgres:5432/${POSTGRES_DB:-jbh_db}
+    depends_on:
+      - jobhunt_postgres
+    volumes:
+      - ./backend/download:/app/download
+    restart: unless-stopped
+    networks:
+      - jobhunter-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jobhunter-frontend
+    ports:
+      - "${FRONTEND_PORT:-7803}:7803"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:${BACKEND_PORT:-6803}/api
+    restart: unless-stopped
+    networks:
+      - jobhunter-network
+
+networks:
+  jobhunter-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

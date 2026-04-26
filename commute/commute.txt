@@ -105,7 +105,42 @@ all the introduction
 
 it's not downloading, it's trying to open the files in the browser in Introduction page, it's not right, user should download to see an to use, not open the file in browser
 
+since this app will be deployed to users, adding a deduct function to "Generate Resume", every generate resume will cost 20 credits for users, when clicking generate resume, there will be a pop up dialogue for user to confirm the cost, the confirm dialogue is shown in the picture, the duduction logic can reference in /commute/supabase_guide.txt, if user's left credits are not enough, can not generate resume.
 
 i wanna deploy this app to a ubuntu server very soon, please do the following works:
 1. scan the code files, delete unneeded or temp files.
 2. create dockerfiles for both ends and docker-compose.yml file for me based on the ports definition in .env file
+
+are there any suggestions for deployment, just tell me.
+
+
+
+CAN NOT download from "Experience Brain" check 
+
+the content in "Resumes" module doesn't show up in the frontend page, check the code and fix it.
+
+1.there is a feaature in job list that can ingest job from image, but i found a issue that, the job links are always missing, can not be extracted frome iamages, so, i wanna add a job link input field for user to input the job link manually, and then use the images to ingest the job, if the job links is blank when ingesting a job from images, it will be empty in the job detail page.
+2.update the name of the button from "Read Images" to "Ingest Job from Images"
+
+
+refresh job list comes up following error:
+
+
+make a update to job list, currently, the user will be confused in generating resume and coverletter in following situations:
+1. after resume generation completed, the button is still the same as before, user don's know whether it's completed or not, some user will click it again.
+2. the same situation for coverletter generation, user don't know whether current job's generation is done or not
+i wanna you to do following changes:
+1. add a completed status to both the "generate resume" and "generate coverletter" buttons, when the generation is completed, the color of the button should change to green to indicate user that the completion is done, there are already resume and coverletter for the job in the resume list.
+2. this should not affect the regenerate function, user can still regenerate the resume and coverletter by clicking the button again, and the button will change to green again after the regeneration is completed.
+
+
+
+make following 3 updates:
+
+1. i found a issue in this app, when viewing job details in Dashboard module, if user click generation resume or generation coverletter, in the generating process(often it takes 5-10 seconds), user could click to another job detail to view. BUT, when the previous generation is completed, the current job details will be forced refreshed to the previews job (the one that use just clicked generation resume or coverletter), that makes users uncomfortable that the reading in new job is not completed yet but forced to previous job. 
+
+please stop this auto refresh, let user navigate to the previous job on his will.
+
+2. in job details page, if user selected a specific version of template to generate resume,  it will not remember, when generate coverletter, user will have to select again, add a indicator besides the generate resume button and generate coverletter button so user could know what template version it is based on (if it is generated already)
+
+2. add template name in resume list in resume module so user will know the template version name that resume and coverletter they based on.

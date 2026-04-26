@@ -17,6 +17,7 @@ class CompanyAnalysis(BaseModel):
 class JobFromImages(BaseModel):
     images: List[str]  # List of base64 encoded strings
     language: Optional[str] = "en"
+    url: Optional[str] = None  # Manually entered job link (can't be extracted from images)
 
 class JobCreate(BaseModel):
     url: Optional[str] = None
@@ -103,6 +104,24 @@ class JobResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class JobListItem(BaseModel):
+    id: int
+    title: str
+    company: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    platform: str
+    user_email: str
+
+    class Config:
+        from_attributes = True
+
+class PaginatedJobResponse(BaseModel):
+    items: List[JobListItem]
+    total: int
+    counts: Dict[str, int]
 
 class AnalysisResult(BaseModel):
     title: Optional[str] = None

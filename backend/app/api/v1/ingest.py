@@ -16,9 +16,13 @@ class IngestRequest(BaseModel):
     html: str
     user_email: str = "kd_0047@163.com"
 
+from fastapi import BackgroundTasks
+from app.api.v1.jobs import analyze_job
+
 @router.post("/ingest")
-def ingest_job(
+async def ingest_job(
     request: IngestRequest,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     current_user: Profile = Depends(get_current_user)
 ):
@@ -51,4 +55,14 @@ def ingest_job(
     session.commit()
     session.refresh(job)
     logger.info(f"Successfully ingested job {job.id}")
+    
+    # Trigger auto-analysis in background
+    background_tasks.add_task(
+        analyze_job,
+        job_id=job.id,
+        accept_language="en", # Default to English, could be passed from extension
+        current_user=current_user,
+        db=session
+    )
+    
     return {"message": "Job ingested successfully", "id": job.id}

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExperienceBlock } from '../types';
-import { Plus, Edit2, Trash2, Briefcase, FileUp, Loader2, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Briefcase, FileUp, Download } from 'lucide-react';
 import { extractExperienceFromText } from '../services/geminiService';
+import loadingSvg from '../logo/loading.svg';
 
 interface ExperienceLibraryProps {
   blocks: ExperienceBlock[];
@@ -263,7 +264,7 @@ ${block.content_star.result}
                 <span>{t('experience_library.download')}</span>
             </button>
             <label className={`flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all shadow-md cursor-pointer ${isImporting ? 'opacity-70 pointer-events-none' : ''}`}>
-               {isImporting ? <Loader2 className="animate-spin" size={20} /> : <FileUp size={20} />}
+               {isImporting ? <img src={loadingSvg} alt="loading" className="w-5 h-5 inline-block" /> : <FileUp size={20} />}
                <span>{isImporting ? t('experience_library.extracting') : t('experience_library.import')}</span>
                <input type="file" className="hidden" accept=".txt,.md" onChange={handleFileUpload} />
             </label>

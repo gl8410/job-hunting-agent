@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Lock, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, User, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import loadingSvg from '../logo/loading.svg';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -35,9 +36,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-xl border border-slate-200 animate-fade-in-up">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-blue-600 text-white p-3 rounded-xl shadow-lg shadow-blue-200 mb-4">
-            <Search size={32} />
-          </div>
+          <img src="/logo/48-logo-yellow.png" alt="Job Hunter Logo" className="w-16 h-16 mb-4 drop-shadow-lg" />
           <h1 className="text-2xl font-bold text-slate-800">Job Hunter</h1>
           <p className="text-slate-500 text-sm">Sign in to manage your career pipeline</p>
         </div>
@@ -89,7 +88,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
+            {loading ? <img src={loadingSvg} alt="loading" className="w-5 h-5 inline-block" /> : 'Login'}
           </button>
         </form>
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ResumeTemplate } from '../types';
-import { Upload, FileText, Check, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Upload, FileText, Check, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import loadingSvg from '../logo/loading.svg';
 
 interface PersonalManagementProps {
     templates: ResumeTemplate[];
@@ -190,7 +191,7 @@ export const PersonalManagement: React.FC<PersonalManagementProps> = ({
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm text-sm disabled:opacity-50"
                     >
                         {uploading === 'creating' ? (
-                            <Loader2 className="animate-spin" size={16} />
+                            <img src={loadingSvg} alt="loading" className="w-4 h-4 inline-block" />
                         ) : (
                             <Plus size={16} />
                         )}
@@ -233,7 +234,7 @@ export const PersonalManagement: React.FC<PersonalManagementProps> = ({
                                     ) : (
                                         <label className="cursor-pointer text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded transition-colors flex items-center gap-1">
                                             {uploading === `upload-${t.id}-resume` ? (
-                                                <Loader2 className="animate-spin" size={12} />
+                                                <img src={loadingSvg} alt="loading" className="w-3 h-3 inline-block" />
                                             ) : (
                                                 <Upload size={12} />
                                             )}{' '}
@@ -267,7 +268,7 @@ export const PersonalManagement: React.FC<PersonalManagementProps> = ({
                                     ) : (
                                         <label className="cursor-pointer text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded transition-colors flex items-center gap-1">
                                             {uploading === `upload-${t.id}-cover_letter` ? (
-                                                <Loader2 className="animate-spin" size={12} />
+                                                <img src={loadingSvg} alt="loading" className="w-3 h-3 inline-block" />
                                             ) : (
                                                 <Upload size={12} />
                                             )}{' '}

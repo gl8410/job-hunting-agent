@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Library, Search, BarChart3, Briefcase, UserCircle, LogOut, Trash2, Edit2, X, Check, Filter, RefreshCw, Languages, FileText, Image as ImageIcon, Compass } from 'lucide-react';
+import { LayoutDashboard, Library, Search, BarChart3, Briefcase, UserCircle, LogOut, Trash2, Edit2, X, Check, Filter, RefreshCw, Languages, FileText, Image as ImageIcon, Compass, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ExperienceBlock, JobOpportunity, JobStatus, ResumeTemplate } from './types';
 import { ExperienceLibrary } from './components/ExperienceLibrary';
@@ -12,6 +12,8 @@ import { LoginPage } from './components/LoginPage';
 import { ImageUploadModal } from './components/ImageUploadModal';
 import { Introduction } from './components/Introduction';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import loadingSvg from './logo/loading.svg';
+import { supabase } from './services/supabase';
 
 // Use relative path to take advantage of proxying (dev) or same-domain hosting (prod)
 const API_BASE = "/api";
@@ -22,14 +24,61 @@ function AppContent() {
   const [view, setView] = useState<'introduction' | 'dashboard' | 'library' | 'stats' | 'profile' | 'resumes' | 'personal'>('introduction');
   const [blocks, setBlocks] = useState<ExperienceBlock[]>([]);
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [jobCounts, setJobCounts] = useState<Record<string, number>>({ ALL: 0 });
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (session) {
+      const fetchCredits = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_credits, topup_credits')
+          .eq('id', session.user.id)
+          .single();
+        if (!error && data) {
+          setCredits((data.subscription_credits || 0) + (data.topup_credits || 0));
+        }
+      };
+      
+      fetchCredits();
+
+      const channel = supabase.channel('app-profile-credits')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
+          (payload) => {
+            const newCredits = (payload.new.subscription_credits || 0) + (payload.new.topup_credits || 0);
+            setCredits(newCredits);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [session]);
 
   const [selectedJobId, setSelectedJobId] = useState<string | number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [editingJobId, setEditingJobId] = useState<string | number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL'>('ALL');
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 20;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, debouncedSearchQuery]);
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'zh' : 'en';
@@ -50,23 +99,53 @@ function AppContent() {
   // Initial Sync with Backend
   useEffect(() => {
     if (session) {
-      refreshJobs();
       fetchWithAuth(`${API_BASE}/experience`).then(res => res.json()).then(setBlocks).catch(e => console.error(e));
       fetchWithAuth(`${API_BASE}/templates`).then(res => res.json()).then(setTemplates).catch(e => console.error(e));
     }
   }, [session]);
 
-  const refreshJobs = async () => {
+  const refreshJobs = async (page = currentPage) => {
+    console.time('refreshJobs');
     try {
-      const response = await fetchWithAuth(`${API_BASE}/jobs`);
+      const skip = (page - 1) * jobsPerPage;
+      const params = new URLSearchParams({
+        skip: skip.toString(),
+        limit: jobsPerPage.toString(),
+      });
+      if (statusFilter !== 'ALL') {
+        params.append('status', statusFilter);
+      }
+      if (debouncedSearchQuery) {
+        params.append('search', debouncedSearchQuery);
+      }
+
+      console.time('refreshJobs:fetch');
+      const response = await fetchWithAuth(`${API_BASE}/jobs?${params.toString()}`);
+      console.timeEnd('refreshJobs:fetch');
+      
       if (response.ok) {
+        console.time('refreshJobs:json');
         const data = await response.json();
-        setJobs(data);
+        console.timeEnd('refreshJobs:json');
+        
+        console.time('refreshJobs:setState');
+        setJobs(data.items);
+        setTotalJobs(data.total);
+        setJobCounts(data.counts);
+        console.timeEnd('refreshJobs:setState');
       }
     } catch (error) {
       console.error('Failed to refresh jobs:', error);
+    } finally {
+      console.timeEnd('refreshJobs');
     }
   };
+
+  useEffect(() => {
+    if (session) {
+      refreshJobs(currentPage);
+    }
+  }, [session, currentPage, statusFilter, debouncedSearchQuery]);
 
   const handleUpdateJob = async (updatedJob: JobOpportunity) => {
     const res = await fetchWithAuth(`${API_BASE}/jobs/${updatedJob.id}`, {
@@ -74,7 +153,19 @@ function AppContent() {
       body: JSON.stringify(updatedJob)
     });
     if (res.ok) {
-      setJobs(prev => prev.map(j => String(j.id) === String(updatedJob.id) ? updatedJob : j));
+      // Update the job in the list if it exists, otherwise refresh
+      setJobs(prev => {
+        const exists = prev.some(j => String(j.id) === String(updatedJob.id));
+        if (exists) {
+          return prev.map(j => String(j.id) === String(updatedJob.id) ? { ...j, ...updatedJob } : j);
+        }
+        return prev;
+      });
+      
+      // If the status changed, we might need to refresh counts or the list if filtered
+      if (statusFilter !== 'ALL' && updatedJob.status !== statusFilter) {
+         refreshJobs(currentPage);
+      }
     }
   };
 
@@ -103,8 +194,8 @@ function AppContent() {
 
     const res = await fetchWithAuth(`${API_BASE}/jobs/${id}`, { method: 'DELETE' });
     if (res.ok) {
-      setJobs(prev => prev.filter(j => j.id !== id));
       setSelectedJobId(prevId => prevId === id ? null : prevId);
+      refreshJobs(currentPage); // Refresh to get correct pagination and counts
     }
   };
 
@@ -120,11 +211,11 @@ function AppContent() {
 
     const res = await fetchWithAuth(`${API_BASE}/jobs/${job.id}`, {
       method: 'PUT',
-      body: JSON.stringify(updatedJob)
+      body: JSON.stringify({ title: editTitle }) // Only send what changed
     });
 
     if (res.ok) {
-      setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? updatedJob : j));
+      setJobs(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, title: editTitle } : j));
       setEditingJobId(null);
     }
   };
@@ -151,34 +242,65 @@ function AppContent() {
     }
   };
 
-  const selectedJob = jobs.find(j => String(j.id) === String(selectedJobId));
+  // We need to fetch the full job details when a job is selected,
+  // because the list only contains lightweight items now.
+  const [fullSelectedJob, setFullSelectedJob] = useState<JobOpportunity | null>(null);
+  const [loadingJobDetails, setLoadingJobDetails] = useState(false);
 
-  const filteredAndSortedJobs = useMemo(() => {
-    return jobs
-      .filter(job => {
-        // Filter by status
-        if (statusFilter !== 'ALL' && job.status !== statusFilter) return false;
-
-        // Filter by search query (title or company)
-        if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const matchesTitle = job.title?.toLowerCase().includes(query);
-          const matchesCompany = job.company?.toLowerCase().includes(query);
-          return matchesTitle || matchesCompany;
+  useEffect(() => {
+    const fetchJobDetails = async () => {
+      if (!selectedJobId) {
+        setFullSelectedJob(null);
+        return;
+      }
+      
+      console.time('fetchJobDetails');
+      setLoadingJobDetails(true);
+      try {
+        console.time('fetchJobDetails:fetch');
+        const res = await fetchWithAuth(`${API_BASE}/jobs/${selectedJobId}`);
+        console.timeEnd('fetchJobDetails:fetch');
+        
+        if (res.ok) {
+          console.time('fetchJobDetails:json');
+          const data = await res.json();
+          console.timeEnd('fetchJobDetails:json');
+          
+          console.time('fetchJobDetails:setState');
+          setFullSelectedJob(data);
+          console.timeEnd('fetchJobDetails:setState');
+        } else {
+          setFullSelectedJob(null);
         }
+      } catch (e) {
+        console.error("Failed to fetch job details", e);
+        setFullSelectedJob(null);
+      } finally {
+        setLoadingJobDetails(false);
+        console.timeEnd('fetchJobDetails');
+      }
+    };
 
-        return true;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [jobs, statusFilter, searchQuery]);
+    fetchJobDetails();
+  }, [selectedJobId, session]);
 
-  const jobCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: jobs.length };
-    Object.values(JobStatus).forEach(s => {
-      counts[s] = jobs.filter(j => j.status === s).length;
+  // When updating a job from the detail view, update both the full job and the list item
+  const handleUpdateFullJob = async (updatedJob: JobOpportunity) => {
+    await handleUpdateJob(updatedJob); // This updates the backend and the list
+    // Only update the displayed job detail if the user is STILL viewing this job.
+    // This prevents generation completing for an old job from overriding the
+    // currently selected (different) job the user already navigated to.
+    setFullSelectedJob(prev => {
+      if (
+        prev &&
+        String(prev.id) === String(updatedJob.id) &&
+        String(selectedJobId) === String(updatedJob.id)
+      ) {
+        return updatedJob;
+      }
+      return prev;
     });
-    return counts;
-  }, [jobs]);
+  };
 
   if (!session) {
     return <LoginPage onLogin={() => { }} />;
@@ -189,9 +311,7 @@ function AppContent() {
       {/* Navbar */}
       <nav className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 text-white p-2 rounded-lg shadow-blue-200">
-            <Search size={24} />
-          </div>
+          <img src="/logo/48-logo-yellow.png" alt="Job Hunter Logo" className="w-10 h-10 drop-shadow" />
           <h1 className="text-xl font-bold tracking-tight text-slate-800 hidden md:block">{t('dashboard.title')}</h1>
         </div>
 
@@ -217,6 +337,11 @@ function AppContent() {
         </div>
 
         <div className="flex items-center gap-2">
+          {credits !== null && (
+            <div className="mr-3 text-sm font-medium text-amber-500 flex items-center">
+              {i18n.language === 'zh' ? '可用积分:' : 'Credits:'} <span className="ml-1">{credits}</span>
+            </div>
+          )}
           <button
             onClick={toggleLanguage}
             className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors mr-2"
@@ -295,7 +420,7 @@ function AppContent() {
 
         {view === 'resumes' && (
           <div className="h-full bg-slate-50">
-            <ResumeManagement jobs={jobs} onUpdateJob={handleUpdateJob} />
+            <ResumeManagement templates={templates} />
           </div>
         )}
 
@@ -323,7 +448,7 @@ function AppContent() {
                     )}
                   </div>
                   <button
-                    onClick={refreshJobs}
+                    onClick={() => refreshJobs(currentPage)}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-lg transition-colors"
                     title="Refresh job list"
                   >
@@ -338,7 +463,7 @@ function AppContent() {
                     onChange={(e) => setStatusFilter(e.target.value as JobStatus | 'ALL')}
                     className="bg-slate-50 text-xs border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
                   >
-                    <option value="ALL">{t('common.all')} {jobCounts.ALL}</option>
+                    <option value="ALL">{t('common.all')} {jobCounts.ALL || 0}</option>
                     {Object.values(JobStatus).map(status => (
                       <option key={status} value={status}>{t(`common.${status.toLowerCase()}`)} {jobCounts[status] || 0}</option>
                     ))}
@@ -351,16 +476,16 @@ function AppContent() {
                     className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-medium py-2 rounded-lg transition-colors border border-blue-200 shadow-sm"
                   >
                     <ImageIcon size={16} />
-                    <span>Read Images</span>
+                    <span>{t('image_upload.title')}</span>
                   </button>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {filteredAndSortedJobs.length === 0 && searchQuery && (
+                {jobs.length === 0 && debouncedSearchQuery && (
                   <div className="text-center py-8 text-slate-400">
                     <Search size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No jobs found matching "{searchQuery}"</p>
+                    <p className="text-sm">No jobs found matching "{debouncedSearchQuery}"</p>
                     <button
                       onClick={() => setSearchQuery('')}
                       className="text-xs text-blue-600 hover:underline mt-2"
@@ -369,13 +494,13 @@ function AppContent() {
                     </button>
                   </div>
                 )}
-                {filteredAndSortedJobs.length === 0 && !searchQuery && (
+                {jobs.length === 0 && !debouncedSearchQuery && (
                   <div className="text-center py-12 px-4 text-slate-400">
                     <Briefcase size={48} className="mx-auto mb-4 opacity-10" />
                     <p className="text-sm font-medium">{t('dashboard.no_jobs')}</p>
                   </div>
                 )}
-                {filteredAndSortedJobs.map(job => (
+                {jobs.map(job => (
                   <div
                     key={job.id}
                     onClick={() => setSelectedJobId(job.id)}
@@ -430,17 +555,45 @@ function AppContent() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination Controls */}
+              {totalJobs > jobsPerPage && (
+                <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 bg-white">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1 rounded hover:bg-slate-100 disabled:opacity-50 text-slate-600"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Page {currentPage} of {Math.ceil(totalJobs / jobsPerPage)}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalJobs / jobsPerPage), p + 1))}
+                    disabled={currentPage === Math.ceil(totalJobs / jobsPerPage)}
+                    className="p-1 rounded hover:bg-slate-100 disabled:opacity-50 text-slate-600"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Detail Area */}
-            <div className="w-4/5 h-full bg-slate-100/50 p-6 overflow-hidden">
-              {selectedJob ? (
-                <JobDetail
-                  job={selectedJob}
+            <div className="w-4/5 h-full bg-slate-100/50 p-6 overflow-hidden relative">
+              {loadingJobDetails ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                  <img src={loadingSvg} alt="loading" className="w-12 h-12 inline-block mb-4" />
+                  <p className="text-sm font-medium">Loading job details...</p>
+                </div>
+              ) : fullSelectedJob ? (
+                <JobDetail key={fullSelectedJob.id}
+                  job={fullSelectedJob}
                   blocks={blocks}
                   templates={templates}
-                  onUpdateJob={handleUpdateJob}
-                  onRefreshJobs={refreshJobs}
+                  onUpdateJob={handleUpdateFullJob}
+                  onRefreshJobs={() => refreshJobs(currentPage)}
                 />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -461,7 +614,7 @@ function AppContent() {
         apiBase={API_BASE}
         session={session}
         onSuccess={(newJob) => {
-          setJobs(prev => [newJob, ...prev]);
+          refreshJobs();
           setSelectedJobId(newJob.id);
         }}
       />

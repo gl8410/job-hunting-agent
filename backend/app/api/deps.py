@@ -1,13 +1,14 @@
 """
 API Dependencies
 """
-from typing import Generator, Any
+from typing import Generator, Any, Dict, Tuple
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
 import httpx
 import uuid
 import ssl
+import time
 
 from app.core.db import engine
 from app.core.config import settings
@@ -16,6 +17,10 @@ from app.models.user import Profile
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
+# Simple TTL Cache for user profiles to avoid hitting Supabase on every request
+_token_cache: Dict[str, Tuple[float, Profile]] = {}
+CACHE_TTL = 300  # 5 minutes
+
 def get_db() -> Generator[Session, None, None]:
     """
     Database session dependency
@@ -23,7 +28,7 @@ def get_db() -> Generator[Session, None, None]:
     with Session(engine) as session:
         yield session
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme),
 ) -> Profile:
     """
@@ -31,11 +36,7 @@ async def get_current_user(
     If profile doesn't exist but token is valid, creates a default profile.
     """
     if not token:
-        # In DEBUG mode, we might want to allow access, but for safety in this refactor,
-        # we enforce auth. If dev mode is needed, handling it explicitly is better.
-        # But previous code had a fallback.
         if settings.DEBUG:
-            # Check if we should allow bypass.
              pass
         
         raise HTTPException(
@@ -43,6 +44,14 @@ async def get_current_user(
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check cache first
+    if token in _token_cache:
+        timestamp, cached_profile = _token_cache[token]
+        if time.time() - timestamp < CACHE_TTL:
+            return cached_profile
+        else:
+            del _token_cache[token]
 
     supabase = get_supabase_client()
     
@@ -79,14 +88,12 @@ async def get_current_user(
         params = {"select": "*", "id": f"eq.{user.id}"}
         
         # Configure httpx client with proper timeout and SSL settings
-        # Use verify=True but with increased timeout to handle SSL handshake issues
         client_config = {
             "timeout": httpx.Timeout(15.0, connect=5.0),
-            "verify": True,  # Keep SSL verification enabled for security
+            "verify": True,
             "follow_redirects": True,
         }
         
-        # Retry logic for transient SSL errors
         max_retries = 3
         last_error = None
         
@@ -94,23 +101,19 @@ async def get_current_user(
             try:
                 with httpx.Client(**client_config) as client:
                     resp = client.get(url, headers=headers, params=params)
-                break  # Success, exit retry loop
+                break
             except (httpx.RequestError, ssl.SSLError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    # Wait briefly before retry
-                    import time
                     time.sleep(0.5 * (attempt + 1))
                     continue
                 else:
-                    # Last attempt failed, raise the error
                     raise
             
         data = resp.json() if resp.status_code == 200 else []
         profile_data: Any = data[0] if data else None
 
         if profile_data is None:
-            # Auto-create profile in Supabase if missing
             new_profile = {
                 "id": user.id,
                 "email": user.email,
@@ -125,7 +128,6 @@ async def get_current_user(
                     break
                 except (httpx.RequestError, ssl.SSLError) as e:
                     if attempt < max_retries - 1:
-                        import time
                         time.sleep(0.5 * (attempt + 1))
                         continue
                     else:
@@ -135,17 +137,19 @@ async def get_current_user(
                  ins_data = resp_ins.json()
                  profile_data = ins_data[0] if ins_data else new_profile
             else:
-                 # Fallback
                  print(f"DEBUG: Failed to auto-create profile: {resp_ins.text}")
                  profile_data = new_profile
 
-        # Map to Profile model
         profile = Profile(
             id=uuid.UUID(str(profile_data['id'])),
             email=str(profile_data.get('email', '')) if profile_data.get('email') else None,
             subscription_credits=int(profile_data.get('subscription_credits') or 0),
             topup_credits=int(profile_data.get('topup_credits') or 0)
         )
+        
+        # Save to cache
+        _token_cache[token] = (time.time(), profile)
+        
         return profile
         
     except Exception as e:
@@ -153,10 +157,14 @@ async def get_current_user(
         print(f"DEBUG: Supabase Profile Fetch Error: {str(e)}")
         print(traceback.format_exc())
         
-        # Fallback to local default profile
-        return Profile(
+        profile = Profile(
             id=uuid.UUID(str(user.id)),
             email=str(user.email) if user.email else None,
             subscription_credits=0,
             topup_credits=0
         )
+        
+        # Save fallback to cache as well to prevent repeated failures
+        _token_cache[token] = (time.time(), profile)
+        
+        return profile

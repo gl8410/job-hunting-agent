@@ -120,6 +120,21 @@ i18n
             generate_resume: "Generate Resume",
             generate_cover_letter: "Generate Cover Letter",
             ingest_time: "INGEST TIME"
+          },
+          image_upload: {
+            title: "Ingest Job from Images",
+            job_link: "Job Link",
+            optional: "(optional — cannot be extracted from images)",
+            drag_drop: "Drag and drop images here",
+            paste_clipboard: "or paste from clipboard (Ctrl+V / Cmd+V)",
+            browse: "Browse Files",
+            cancel: "Cancel",
+            analyzing: "Analyzing...",
+            analyze_btn: "Analyze Images",
+            err_only_images: "Please upload only image files.",
+            err_size: "Image must be less than 5MB.",
+            err_read: "Failed to read image file.",
+            err_empty: "Please provide at least one image."
           }
         }
       },
@@ -232,6 +247,21 @@ i18n
             generate_resume: "生成简历",
             generate_cover_letter: "生成求职信",
             ingest_time: "录入时间"
+          },
+          image_upload: {
+            title: "从图片录入职位",
+            job_link: "职位链接",
+            optional: "(可选 — 无法从图片中提取)",
+            drag_drop: "将图片拖拽至此",
+            paste_clipboard: "或从剪贴板粘贴 (Ctrl+V / Cmd+V)",
+            browse: "浏览文件",
+            cancel: "取消",
+            analyzing: "分析中...",
+            analyze_btn: "分析图片",
+            err_only_images: "请仅上传图片文件。",
+            err_size: "图片大小不能超过 5MB。",
+            err_read: "读取图片文件失败。",
+            err_empty: "请至少提供一张图片。"
           }
         }
       }
