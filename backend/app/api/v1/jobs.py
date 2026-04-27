@@ -46,6 +46,10 @@ async def list_jobs(
     counts = {"ALL": total_count}
     counts.update(status_counts)
 
+    # Calculate platform counts
+    platform_counts_query = select(JobOpportunity.platform, func.count(JobOpportunity.id)).where(JobOpportunity.user_email == current_user_email).group_by(JobOpportunity.platform)
+    platform_counts = dict(db.exec(platform_counts_query).all())
+
     # Apply filters
     if status and status != "ALL":
         base_query = base_query.where(JobOpportunity.status == status)
@@ -82,7 +86,8 @@ async def list_jobs(
     return {
         "items": job_items,
         "total": total_filtered,
-        "counts": counts
+        "counts": counts,
+        "platform_counts": platform_counts
     }
 
 @router.post("/jobs", response_model=JobResponse)
@@ -101,24 +106,33 @@ async def create_job(
     db.refresh(db_job)
     return db_job
 
-@router.get("/jobs/resumes", response_model=List[JobResponse])
+@router.get("/jobs/resumes")
 async def list_jobs_with_resumes(
+    skip: int = 0,
+    limit: int = 20,
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Return all jobs that have a generated resume or cover letter (full fields)."""
+    """Return jobs that have a generated resume or cover letter with pagination."""
     current_user_email = current_user.email
-    statement = (
+    base_query = (
         select(JobOpportunity)
         .where(JobOpportunity.user_email == current_user_email)
         .where(
             (JobOpportunity.generated_resume != None) |
             (JobOpportunity.generated_cover_letter != None)
         )
-        .order_by(JobOpportunity.resume_generated_at.desc())
     )
+    
+    total = db.exec(select(func.count()).select_from(base_query.subquery())).one()
+    
+    statement = base_query.order_by(JobOpportunity.resume_generated_at.desc()).offset(skip).limit(limit)
     jobs = db.exec(statement).all()
-    return jobs
+    
+    return {
+        "items": jobs,
+        "total": total
+    }
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job(

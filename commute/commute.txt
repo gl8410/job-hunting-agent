@@ -144,3 +144,80 @@ please stop this auto refresh, let user navigate to the previous job on his will
 2. in job details page, if user selected a specific version of template to generate resume,  it will not remember, when generate coverletter, user will have to select again, add a indicator besides the generate resume button and generate coverletter button so user could know what template version it is based on (if it is generated already)
 
 2. add template name in resume list in resume module so user will know the template version name that resume and coverletter they based on.
+
+
+this app is about to publish to github, please write a README.md file for it, and make sure the code is clean and well-organized.
+
+
+this app will be deployed to a ubuntu server with a ip of 117.72.155.176;
+this app will be deployed with following nginx defines:
+
+limit_req_zone $binary_remote_addr zone=job_limit:10m rate=10r/s;
+server {
+    listen 8888; # 同样监听 8888  端口以绕过备案拦截
+    server_name job.guil.top;
+    location / {
+        proxy_pass http://127.0.0.1:7803; # 指向新项目的前端端口     
+        # 关键修复：使用 $http_host 携带端口号，避免 Next.js/Vite 的安全校验报错
+        proxy_set_header Host $http_host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade; 
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        limit_req zone=job_limit burst=5 nodelay;
+    }
+    # 如果后端 API 需要通过域名访问，可以增加一个 /api 路径转发
+    location /api {
+        proxy_pass http://127.0.0.1:6803;
+        # --- CORS 配置开始 ---
+        # 允许所有来源（生产环境建议指定具体域名） }
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        # 允许的方法
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+        # 允许的自定义 Header（如 Authorization, Content-Type）
+        add_header 'Access-Control-Allow-Headers' 'Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,X-Requested-With' always;
+        # 处理 OPTIONS 预检请求
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8'; add_header 'Content-Length' 0;
+            return 204;
+        }
+    # --- CORS 配置结束 --- 保持透传真实 IP 等信息（推荐加上）
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+
+readme 中，要加入以下内容：
+
+1. 加入痛点分析环节，要炸裂点，有吸引力，不要平铺直叙
+   阅读招聘信息，又长又累？    ai阅读招聘信息，1分钟即可抓住重点
+   公司琳琅满目，到底是干什么的，靠谱吗？    对招聘企业进行详细背调，15秒清楚行业背景，公司风险
+   读半天招聘需求，发现自己不适合，白费力气？   多维岗位匹配度分析，有的放矢
+   针对性写简历，实在折腾？     一个模板，针对性特色简历，准确匹配已有经验
+   求职信绞尽脑汁？            顺手一点，求职信自动生成
+
+   以上问题，通过智能求职助手，简历投递速度*5倍以上！！
+
+2. 你要介绍下，插件端，怎么用，就是/jobs里面装的那个，这个要配合插件才能摄入简历的，不会就仔细读读
+
+先更新中文版的
+
+
+
+多加入点emoj，那么好的产品，不多说清楚，你对得起我吗？你对得起开发这款产品的你自己吗？？你现在是一个营销天才啊！！！！，再写的精彩一点，同样是先写中文版
+
+
+make two updates:
+1. loading resume page will cost a lot of time, currently, will load all resumes at one time, add a pager navigator, every page will have 20 resumes, user could navigate to other pages, now is too time consuming even just shows loading status and don't refresh.
+2. the numbers in stats module are wrong, make it right according to the job numbers in the database
+
+
+after deploy this app to a ubuntu server, it will take nearly 10 seconds or more to refresh the resume list page, but in local environment, it's OK
+, make a investigation to this issue, i doubt whether there is a authentication process to supbabase, so it will cost a lot of time, if it is, make a auth cache to local to save time.

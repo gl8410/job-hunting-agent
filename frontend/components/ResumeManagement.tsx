@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Trash2, FileText, FileCheck, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import { Download, Trash2, FileText, FileCheck, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { JobOpportunity, ResumeTemplate } from '../types';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,13 +23,19 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ templates = 
   const [resumeJobs, setResumeJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResumes, setTotalResumes] = useState(0);
+  const jobsPerPage = 20;
 
-  const fetchResumeJobs = useCallback(async () => {
+  const fetchResumeJobs = useCallback(async (page = currentPage) => {
     if (!session) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/jobs/resumes`, {
+      const skip = (page - 1) * jobsPerPage;
+      const params = new URLSearchParams({ skip: skip.toString(), limit: jobsPerPage.toString() });
+      const res = await fetch(`${API_BASE}/jobs/resumes?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
@@ -37,16 +43,17 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ templates = 
         }
       });
       if (!res.ok) throw new Error(`Failed to load resumes (${res.status})`);
-      const data: JobOpportunity[] = await res.json();
-      setResumeJobs(data);
+      const data = await res.json();
+      setResumeJobs(data.items);
+      setTotalResumes(data.total);
     } catch (e: any) {
       setError(e.message || 'Unknown error');
     } finally {
       setLoading(false);
     }
-  }, [session, i18n.language]);
+  }, [session, i18n.language, currentPage]);
 
-  useEffect(() => { fetchResumeJobs(); }, [fetchResumeJobs]);
+  useEffect(() => { fetchResumeJobs(currentPage); }, [fetchResumeJobs, currentPage]);
 
   // Sort State
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>({
@@ -530,6 +537,29 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ templates = 
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalResumes > jobsPerPage && (
+          <div className="flex items-center justify-between px-4 py-3 mt-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-md hover:bg-slate-100 disabled:opacity-50 text-slate-600 font-medium text-sm flex items-center gap-1 transition-colors"
+            >
+              <ChevronLeft size={16} /> Previous
+            </button>
+            <span className="text-sm text-slate-500 font-medium">
+              Page {currentPage} of {Math.ceil(totalResumes / jobsPerPage)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalResumes / jobsPerPage), p + 1))}
+              disabled={currentPage === Math.ceil(totalResumes / jobsPerPage)}
+              className="px-3 py-1.5 rounded-md hover:bg-slate-100 disabled:opacity-50 text-slate-600 font-medium text-sm flex items-center gap-1 transition-colors"
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

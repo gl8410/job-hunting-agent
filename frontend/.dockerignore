@@ -12,9 +12,8 @@ dist/
 build/
 .vite/
 
-# Environment Variables
-.env
-.env.*
+# Environment Variables Allowed for frontend build
+# .env files are needed by Vite at build time to inject VITE_* variables
 
 # Logs
 logs

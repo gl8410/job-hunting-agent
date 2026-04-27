@@ -26,6 +26,7 @@ function AppContent() {
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [totalJobs, setTotalJobs] = useState(0);
   const [jobCounts, setJobCounts] = useState<Record<string, number>>({ ALL: 0 });
+  const [platformCounts, setPlatformCounts] = useState<Record<string, number>>({});
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [credits, setCredits] = useState<number | null>(null);
 
@@ -105,7 +106,6 @@ function AppContent() {
   }, [session]);
 
   const refreshJobs = async (page = currentPage) => {
-    console.time('refreshJobs');
     try {
       const skip = (page - 1) * jobsPerPage;
       const params = new URLSearchParams({
@@ -119,25 +119,18 @@ function AppContent() {
         params.append('search', debouncedSearchQuery);
       }
 
-      console.time('refreshJobs:fetch');
       const response = await fetchWithAuth(`${API_BASE}/jobs?${params.toString()}`);
-      console.timeEnd('refreshJobs:fetch');
       
       if (response.ok) {
-        console.time('refreshJobs:json');
         const data = await response.json();
-        console.timeEnd('refreshJobs:json');
         
-        console.time('refreshJobs:setState');
         setJobs(data.items);
         setTotalJobs(data.total);
         setJobCounts(data.counts);
-        console.timeEnd('refreshJobs:setState');
+        setPlatformCounts(data.platform_counts || {});
       }
     } catch (error) {
       console.error('Failed to refresh jobs:', error);
-    } finally {
-      console.timeEnd('refreshJobs');
     }
   };
 
@@ -397,7 +390,7 @@ function AppContent() {
 
         {view === 'stats' && (
           <div className="h-full overflow-y-auto">
-            <JobStatistics jobs={jobs} />
+            <JobStatistics statusCounts={jobCounts} platformCounts={platformCounts} />
           </div>
         )}
 

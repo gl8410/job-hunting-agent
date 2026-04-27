@@ -122,6 +122,7 @@ class PaginatedJobResponse(BaseModel):
     items: List[JobListItem]
     total: int
     counts: Dict[str, int]
+    platform_counts: Optional[Dict[str, int]] = None
 
 class AnalysisResult(BaseModel):
     title: Optional[str] = None

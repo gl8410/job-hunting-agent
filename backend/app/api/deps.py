@@ -1,7 +1,7 @@
 """
 API Dependencies
 """
-from typing import Generator, Any, Dict, Tuple
+from typing import Generator, Any, Dict, Tuple, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
@@ -15,11 +15,63 @@ from app.core.config import settings
 from app.core.supabase import get_supabase_client
 from app.models.user import Profile
 
+import os
+import tempfile
+import json
+import hashlib
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
-# Simple TTL Cache for user profiles to avoid hitting Supabase on every request
-_token_cache: Dict[str, Tuple[float, Profile]] = {}
-CACHE_TTL = 300  # 5 minutes
+# File-based cache for authentication to avoid hitting Supabase on every request across workers
+CACHE_DIR = os.path.join(tempfile.gettempdir(), 'jbh_auth_cache')
+os.makedirs(CACHE_DIR, exist_ok=True)
+CACHE_TTL = 3600  # 1 hour
+
+def _get_from_file_cache(token: str) -> 'Optional[Profile]':
+    token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    file_path = os.path.join(CACHE_DIR, f"{token_hash}.json")
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if time.time() - data['timestamp'] < CACHE_TTL:
+                profile_data = data['profile']
+                return Profile(
+                    id=uuid.UUID(profile_data['id']),
+                    email=profile_data.get('email'),
+                    first_name=profile_data.get('first_name'),
+                    last_name=profile_data.get('last_name'),
+                    avatar_url=profile_data.get('avatar_url'),
+                    subscription_credits=profile_data.get('subscription_credits', 0),
+                    topup_credits=profile_data.get('topup_credits', 0)
+                )
+            else:
+                os.remove(file_path)
+        except Exception:
+            pass
+    return None
+
+def _save_to_file_cache(token: str, profile: Profile):
+    token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    file_path = os.path.join(CACHE_DIR, f"{token_hash}.json")
+    try:
+        data = {
+            'timestamp': time.time(),
+            'profile': {
+                'id': str(profile.id),
+                'email': profile.email,
+                'first_name': profile.first_name,
+                'last_name': profile.last_name,
+                'avatar_url': profile.avatar_url,
+                'subscription_credits': profile.subscription_credits,
+                'topup_credits': profile.topup_credits
+            }
+        }
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"DEBUG: Failed to save file cache: {e}")
+
 
 def get_db() -> Generator[Session, None, None]:
     """
@@ -45,13 +97,10 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check cache first
-    if token in _token_cache:
-        timestamp, cached_profile = _token_cache[token]
-        if time.time() - timestamp < CACHE_TTL:
-            return cached_profile
-        else:
-            del _token_cache[token]
+    # Check local file cache first
+    cached_profile = _get_from_file_cache(token)
+    if cached_profile:
+        return cached_profile
 
     supabase = get_supabase_client()
     
@@ -147,8 +196,8 @@ def get_current_user(
             topup_credits=int(profile_data.get('topup_credits') or 0)
         )
         
-        # Save to cache
-        _token_cache[token] = (time.time(), profile)
+        # Save to file cache
+        _save_to_file_cache(token, profile)
         
         return profile
         
@@ -164,7 +213,7 @@ def get_current_user(
             topup_credits=0
         )
         
-        # Save fallback to cache as well to prevent repeated failures
-        _token_cache[token] = (time.time(), profile)
+        # Save fallback to file cache as well to prevent repeated failures
+        _save_to_file_cache(token, profile)
         
         return profile

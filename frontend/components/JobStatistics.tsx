@@ -4,14 +4,15 @@ import { JobOpportunity, JobStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface JobStatisticsProps {
-  jobs: JobOpportunity[];
+  statusCounts: Record<string, number>;
+  platformCounts: Record<string, number>;
 }
 
-export const JobStatistics: React.FC<JobStatisticsProps> = ({ jobs }) => {
+export const JobStatistics: React.FC<JobStatisticsProps> = ({ statusCounts, platformCounts }) => {
   const { t } = useTranslation();
-  const statusCounts = Object.values(JobStatus).map(status => ({
+  const statusData = Object.values(JobStatus).map(status => ({
     name: t(`common.${status.toLowerCase()}`),
-    value: jobs.filter(j => j.status === status).length,
+    value: statusCounts[status] || 0,
     color: 
       status === JobStatus.NEW ? '#3b82f6' : 
       status === JobStatus.APPLIED ? '#22c55e' : 
@@ -19,13 +20,8 @@ export const JobStatistics: React.FC<JobStatisticsProps> = ({ jobs }) => {
       status === JobStatus.INTERVIEW ? '#a855f7' : '#94a3b8'
   }));
 
-  const platformCounts = jobs.reduce((acc, job) => {
-    acc[job.platform] = (acc[job.platform] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
   const platformData = Object.entries(platformCounts).map(([key, value]) => ({ name: key, value }));
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28CF8', '#F472B6'];
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-fade-in-up">
@@ -36,13 +32,13 @@ export const JobStatistics: React.FC<JobStatisticsProps> = ({ jobs }) => {
           <h3 className="text-lg font-semibold mb-6 text-slate-700">{t('stats.pipeline')}</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusCounts} layout="vertical">
+              <BarChart data={statusData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
                 <Tooltip />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {statusCounts.map((entry, index) => (
+                  {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Bar>

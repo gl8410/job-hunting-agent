@@ -10,7 +10,8 @@ services:
     ports:
       - "5435:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /data/volumes/search_agent_postgres:/var/lib/postgresql/data
+      - ./init-sql:/docker-entrypoint-initdb.d
     networks:
       - jobhunter-network
 
@@ -22,7 +23,7 @@ services:
     ports:
       - "${BACKEND_PORT:-6803}:6803"
     env_file:
-      - .env
+      - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-jobhunter}:${POSTGRES_PASSWORD:-jobhunter_pass}@jobhunt_postgres:5432/${POSTGRES_DB:-jbh_db}
     depends_on:
