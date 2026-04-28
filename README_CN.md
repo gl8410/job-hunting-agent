@@ -1,9 +1,5 @@
 [English](README.md) | 中文版
 
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # 求职辅助智能体 (Job Hunt Agent)
 
 **求职辅助智能体 (Job Hunt Agent)** 是一款基于先进 AI 技术的求职辅助与决策支持“神器” 🪄。它旨在帮您彻底告别繁琐的求职内耗，一站式管理申请、追踪经验、透视职位，并为您 **量身定做🔥** 最吸睛的简历与求职信！
