@@ -26,7 +26,7 @@ from sqlalchemy import func
 @router.get("/jobs", response_model=PaginatedJobResponse)
 async def list_jobs(
     skip: int = 0,
-    limit: int = 20,
+    limit: int = 10,
     status: Optional[str] = None,
     search: Optional[str] = None,
     current_user: Profile = Depends(get_current_user),
@@ -109,7 +109,7 @@ async def create_job(
 @router.get("/jobs/resumes")
 async def list_jobs_with_resumes(
     skip: int = 0,
-    limit: int = 20,
+    limit: int = 10,
     current_user: Profile = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

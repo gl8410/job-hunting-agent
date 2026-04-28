@@ -70,7 +70,7 @@ function AppContent() {
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL'>('ALL');
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const jobsPerPage = 20;
+  const jobsPerPage = 10;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);

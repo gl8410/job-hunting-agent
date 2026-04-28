@@ -26,7 +26,7 @@ export const ResumeManagement: React.FC<ResumeManagementProps> = ({ templates = 
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResumes, setTotalResumes] = useState(0);
-  const jobsPerPage = 20;
+  const jobsPerPage = 10;
 
   const fetchResumeJobs = useCallback(async (page = currentPage) => {
     if (!session) return;

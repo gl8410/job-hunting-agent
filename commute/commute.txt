@@ -221,3 +221,5 @@ make two updates:
 
 after deploy this app to a ubuntu server, it will take nearly 10 seconds or more to refresh the resume list page, but in local environment, it's OK
 , make a investigation to this issue, i doubt whether there is a authentication process to supbabase, so it will cost a lot of time, if it is, make a auth cache to local to save time.
+
+still cost a lot of time in the nagivation in resume pages, reduce every page to 10 resumes for faster loading
